@@ -7,9 +7,11 @@
  * included — cannot read a single message.
  */
 import express, { type NextFunction, type Request, type Response } from 'express';
+import { join } from 'node:path';
 import { AgentLineError } from '@agentline/protocol';
 import { chainMode, config, paymentMode, registryMode } from './config.ts';
 import { store } from './lib/store.ts';
+import { adminRouter, adminToken } from './routes/admin.ts';
 import { agentsRouter } from './routes/agents.ts';
 import { conversationsRouter } from './routes/conversations.ts';
 import { discoveryRouter } from './routes/discovery.ts';
@@ -18,6 +20,8 @@ import { miscRouter } from './routes/misc.ts';
 import { safetyRouter } from './routes/safety.ts';
 import { flushAll } from './services/notifier.ts';
 import { ledger, verifyLedger } from './services/ledger.ts';
+import { noteRequest, noteServerError, startHealthMonitor } from './services/health.ts';
+import { alertConfig, raiseAlert, transportDescription } from './services/alerts.ts';
 
 export function createApp() {
   const app = express();
@@ -32,13 +36,21 @@ export function createApp() {
   app.use(express.raw({ type: 'application/octet-stream', limit: 64 * 1024 * 1024, verify: (req, _res, buf) => { (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buf); } }));
 
   app.use((req, res, next) => {
+    noteRequest();
     res.setHeader('AgentLine-Version', '0.1.0');
     // Agents discover the protocol from the response itself, not from tribal knowledge.
     res.setHeader('Link', `<${config.publicUrl}/llms.txt>; rel="service-doc", <${config.publicUrl}/.well-known/agentline.json>; rel="service-desc"`);
     next();
   });
 
+  // Operator console: a static page that drives the admin API below. `redirect: false`
+  // keeps /ui from bouncing to /ui/, which would drop the ?token= query string.
+  const publicDir = join(import.meta.dirname, '../public');
+  app.get('/ui', (_req, res) => res.sendFile(join(publicDir, 'index.html')));
+  app.use('/ui', express.static(publicDir, { redirect: false }));
+
   app.use(discoveryRouter);
+  app.use('/v1/admin', adminRouter);
   app.use('/v1', agentsRouter);
   app.use('/v1', conversationsRouter);
   app.use('/v1', groupsRouter);
@@ -66,7 +78,19 @@ export function createApp() {
       syntax ? 'validation_failed' : 'internal',
       syntax ? `malformed JSON body: ${message}` : message,
     );
-    if (!syntax) console.error('[gateway] unhandled:', err);
+    if (!syntax) {
+      console.error('[gateway] unhandled:', err);
+      noteServerError();
+      // An unhandled exception is a bug by definition; the operator should see it without
+      // reading logs.
+      raiseAlert({
+        severity: 'critical',
+        kind: 'gateway.unhandled_error',
+        title: `Unhandled error on ${req.method} ${req.path}`,
+        detail: message.slice(0, 500),
+        meta: { method: req.method, path: req.path, stack: err instanceof Error ? err.stack?.split('\n').slice(0, 5).join('\n') : undefined },
+      });
+    }
     res.status(problem.status).type('application/problem+json').json(problem.toProblem(req.originalUrl));
   });
 
@@ -79,6 +103,16 @@ export async function start(port = config.port) {
   // first message. Falls back to the local ledger (loudly) if Hedera is unusable.
   const { degraded } = await verifyLedger();
   const info = ledger().info();
+  if (degraded) {
+    raiseAlert({
+      severity: 'critical',
+      kind: 'consensus.degraded',
+      title: 'Gateway started on the local ledger — Hedera is configured but unusable',
+      detail: degraded,
+      meta: { configuredNetwork: config.hedera.network, account: config.hedera.accountId },
+    });
+  }
+  startHealthMonitor();
   const server = app.listen(port, () => {
     console.log(`\n  AgentLine gateway  ->  http://localhost:${port}`);
     console.log(`  consensus: ${chainMode()}   registry: ${registryMode()}   payments: ${paymentMode()}`);
@@ -86,6 +120,9 @@ export async function start(port = config.port) {
     else if (chainMode() === 'local') console.log('  note: local consensus ledger in use (no Hedera credentials configured)');
     if (paymentMode() === 'verify-only') console.log('  note: payments verified but not settled (no facilitator/settler configured)');
     if (!config.x402.payTo && paymentMode() !== 'disabled') console.log('  warning: X402_PAY_TO is unset — paid routes will fail until you set it');
+    const alerts = alertConfig();
+    console.log(`  alerts: ${alerts.enabled ? 'on' : 'off'} -> ${alerts.to}  (${transportDescription()})`);
+    console.log(`  console: http://localhost:${port}/ui?token=${adminToken()}`);
     console.log(`  docs: http://localhost:${port}/llms.txt   status: http://localhost:${port}/v1/status\n`);
   });
 

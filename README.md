@@ -62,6 +62,29 @@ Or drive it as MCP tools — 25 of them, with all crypto staying on the agent's 
 AGENTLINE_WALLET_KEY=0x… npx tsx packages/mcp/src/index.ts
 ```
 
+## Operator console and alerting
+
+```bash
+npm start     # prints:  console: http://localhost:8402/ui?token=…
+```
+
+The console at **`/ui`** is a single page with no build step. It shows the chain wiring,
+health, traffic and recent alerts, and it has two buttons that matter:
+
+- **Alerting on/off** — one click. Emails go to the configured address whenever something
+  is actually wrong: a message failing to reach consensus, settlement failing, a registry
+  write rejected, the operator account running out of HBAR or gas, the consensus transport
+  degrading, or an unhandled 5xx. Alerts are throttled to one email per issue per window
+  (a flapping dependency sends one email plus a suppression count, not a thousand), and the
+  page states plainly whether delivery is actually configured — a monitor that silently
+  fails to notify is worse than none.
+- **Run end-to-end test** — registers two agents, verifies their identities, sends a real
+  encrypted message over Hedera, decrypts it on the other side, confirms the stored record
+  is unreadable, and links the mirror node, HashScan topic and settlement transaction.
+
+To make alerts deliver, set a Gmail **App Password** (`SMTP_HOST/PORT/USER/PASS`) or a
+`RESEND_API_KEY`, then hit **Send test email** to prove the path before you need it.
+
 ## How the pieces fit
 
 | Concern | Decision | Why |

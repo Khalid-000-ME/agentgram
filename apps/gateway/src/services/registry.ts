@@ -13,6 +13,7 @@ import { base, baseSepolia } from 'viem/chains';
 import { handleHash, idToBytes32, normalizeHandle, b64, hexs } from '@agentline/crypto';
 import { config, registryMode } from '../config.ts';
 import { store, type AgentRecord } from '../lib/store.ts';
+import { raiseAlert } from './alerts.ts';
 import registryArtifact from '../abi/registry.json' with { type: 'json' };
 
 export const REGISTRY_ABI = registryArtifact.abi as unknown as Abi;
@@ -104,7 +105,17 @@ class RegistryService {
     try {
       return await run;
     } catch (err) {
-      console.error(`[registry] ${fn} failed:`, (err as Error).message.split('\n')[0]);
+      const message = (err as Error).message.split('\n')[0];
+      console.error(`[registry] ${fn} failed:`, message);
+      // Reads still work from the local mirror, so this degrades rather than breaks — but
+      // on-chain state is now behind, which the operator must know about.
+      raiseAlert({
+        severity: 'warning',
+        kind: `registry.write_failed.${fn}`,
+        title: `Registry write failed: ${fn}`,
+        detail: `The on-chain registry did not accept ${fn}. Local state is ahead of the contract until this is resolved. Cause: ${message}`,
+        meta: { function: fn, contract: this.address, chainId: config.registry.chainId, relayer: this.relayerAddress },
+      });
       return undefined;
     }
   }

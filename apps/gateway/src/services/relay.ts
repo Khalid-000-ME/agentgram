@@ -14,6 +14,7 @@ import { config } from '../config.ts';
 import { store, type ConversationRecord, type MessageRecord } from '../lib/store.ts';
 import { chunkPayload, ledger, shardFor, type SubmitResult } from './ledger.ts';
 import { notify } from './notifier.ts';
+import { raiseAlert } from './alerts.ts';
 
 /** Provision (or reuse) the HCS topic that carries a conversation. */
 export async function topicForConversation(opts: {
@@ -72,6 +73,15 @@ export async function submitEnvelope(
       last = await ledger().submit(conv.topicId, framed);
     }
   } catch (err) {
+    // A failed submit means a paid message did not reach consensus — the operator has to
+    // know immediately, because the caller was already charged.
+    raiseAlert({
+      severity: 'critical',
+      kind: 'hcs.submit_failed',
+      title: 'Message could not be submitted to consensus',
+      detail: `Submitting to topic ${conv.topicId} failed: ${(err as Error).message}`,
+      meta: { topicId: conv.topicId, cid: conv.cid, ledger: ledger().kind, bytes: payload.length },
+    });
     throw new AgentLineError('chain_unavailable', `consensus submit failed: ${(err as Error).message}`);
   }
 

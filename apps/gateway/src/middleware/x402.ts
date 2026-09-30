@@ -20,6 +20,7 @@ import {
 } from '@agentline/protocol';
 import { config, paymentMode } from '../config.ts';
 import { store } from '../lib/store.ts';
+import { raiseAlert } from '../services/alerts.ts';
 
 const EIP3009_TYPES = {
   TransferWithAuthorization: [
@@ -223,7 +224,16 @@ async function settle(payload: PaymentPayload, required: PaymentRequirements): P
   for (let i = 0; i < attempts.length; i++) {
     last = await attempts[i]();
     if (last.success) {
-      if (i > 0) console.warn(`[x402] settled on attempt ${i + 1}`);
+      if (i > 0) {
+        console.warn(`[x402] settled on attempt ${i + 1}`);
+        raiseAlert({
+          severity: 'info',
+          kind: 'x402.settlement_retried',
+          title: `Payment settled only on attempt ${i + 1}`,
+          detail: `The primary settlement path is unreliable. Last error before success: ${last.errorReason ?? 'unknown'}`,
+          meta: { attempt: i + 1, mode, network: required.network },
+        });
+      }
       return last;
     }
     // An authorization already consumed on-chain means the payment did land: treat it as
@@ -234,6 +244,16 @@ async function settle(payload: PaymentPayload, required: PaymentRequirements): P
     console.warn(`[x402] settlement attempt ${i + 1} failed: ${last.errorReason}`);
     if (i < attempts.length - 1) await new Promise((r) => setTimeout(r, 1500));
   }
+
+  // Every path failed: the service is now refusing paid requests, i.e. it is down for
+  // revenue purposes even though it is answering HTTP.
+  raiseAlert({
+    severity: 'critical',
+    kind: 'x402.settlement_failed',
+    title: 'Payment settlement is failing — paid routes are unusable',
+    detail: `All ${attempts.length} settlement attempts failed. Last error: ${last.errorReason ?? 'unknown'}`,
+    meta: { mode, network: required.network, facilitator: config.x402.facilitatorUrl, asset: required.asset },
+  });
   return last;
 }
 

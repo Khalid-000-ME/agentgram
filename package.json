@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "AgentLine — x402-paid, end-to-end-encrypted, on-chain messaging hub for autonomous agents",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch apps/gateway/src/index.ts",
     "start": "tsx apps/gateway/src/index.ts",
@@ -25,9 +27,11 @@
     "@noble/hashes": "^1.7.1",
     "@noble/post-quantum": "^0.2.1",
     "@scure/base": "^1.2.4",
+    "@types/nodemailer": "^8.0.2",
     "cbor-x": "^1.6.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "nodemailer": "^10.0.13",
     "viem": "^2.23.5",
     "zod": "^3.24.2"
   },

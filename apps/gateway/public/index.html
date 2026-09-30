@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentLine Console</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#131824; --panel-2:#1a2130; --line:#242c3d;
+    --text:#e6e9f0; --dim:#8b95ab; --faint:#5d6779;
+    --ok:#3fd39b; --warn:#f0b849; --bad:#f2555a; --accent:#5b9dff;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f6f7fa; --panel:#fff; --panel-2:#f0f2f7; --line:#e2e6ee;
+      --text:#141821; --dim:#5b6475; --faint:#8b95ab;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 16px 72px}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between;margin-bottom:20px}
+  h1{font-size:20px;margin:0;letter-spacing:-.01em}
+  h1 span{color:var(--dim);font-weight:400}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:0 0 10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .row:last-child{border-bottom:0}
+  .row .k{color:var(--dim);flex:0 0 auto}
+  .row .v{font-family:var(--mono);font-size:12.5px;text-align:right;word-break:break-all}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+    font-size:12px;font-weight:600;font-family:var(--mono)}
+  .pill.ok{background:rgba(63,211,155,.14);color:var(--ok)}
+  .pill.warn{background:rgba(240,184,73,.14);color:var(--warn)}
+  .pill.bad{background:rgba(242,85,90,.14);color:var(--bad)}
+  .pill.dim{background:var(--panel-2);color:var(--dim)}
+  button{font:inherit;font-weight:600;border-radius:9px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--text);padding:9px 15px;cursor:pointer}
+  button:hover:not(:disabled){border-color:var(--accent)}
+  button:disabled{opacity:.5;cursor:progress}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#06101f}
+  .toggle{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .switch{width:60px;height:32px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panel-2);position:relative;cursor:pointer;flex:0 0 auto;transition:.18s;padding:0}
+  .switch[aria-checked="true"]{background:var(--ok);border-color:var(--ok)}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+    background:#fff;transition:.18s}
+  .switch[aria-checked="true"]::after{left:31px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .note{font-size:13px;color:var(--dim);margin:8px 0 0}
+  .note.bad{color:var(--bad)} .note.ok{color:var(--ok)} .note.warn{color:var(--warn)}
+  a{color:var(--accent)}
+  ol.steps{list-style:none;margin:0;padding:0;font-size:14px}
+  ol.steps li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  ol.steps li:last-child{border-bottom:0}
+  ol.steps .mark{flex:0 0 18px;font-weight:700}
+  ol.steps .mark.ok{color:var(--ok)} ol.steps .mark.bad{color:var(--bad)}
+  ol.steps .body{flex:1;min-width:0}
+  ol.steps .t{font-weight:600}
+  ol.steps .d{color:var(--dim);font-family:var(--mono);font-size:12px;word-break:break-all}
+  ol.steps .m{color:var(--faint);font-family:var(--mono);font-size:11.5px;margin-top:3px;word-break:break-all}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;
+    letter-spacing:.06em;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.mono{font-family:var(--mono);font-size:12px;word-break:break-word}
+  .empty{color:var(--faint);font-size:13px;padding:14px 0;text-align:center}
+  input{font:inherit;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;width:100%;max-width:280px}
+  .gate{max-width:420px;margin:12vh auto;text-align:center}
+  .gate p{color:var(--dim);font-size:14px}
+  .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--faint);
+    border-top-color:transparent;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .banner{border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:14px;border:1px solid}
+  .banner.bad{background:rgba(242,85,90,.1);border-color:rgba(242,85,90,.35);color:var(--bad)}
+  .banner.warn{background:rgba(240,184,73,.1);border-color:rgba(240,184,73,.35);color:var(--warn)}
+  .banner.ok{background:rgba(63,211,155,.1);border-color:rgba(63,211,155,.3);color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="gate" class="gate" hidden>
+    <h1>AgentLine Console</h1>
+    <p>Paste the admin token printed in the gateway startup log.</p>
+    <input id="tokenInput" type="password" placeholder="admin token" autocomplete="off">
+    <div class="actions" style="justify-content:center">
+      <button class="primary" onclick="saveToken()">Unlock</button>
+    </div>
+    <p id="gateErr" class="note bad"></p>
+  </div>
+
+  <div id="app" hidden>
+    <header>
+      <h1>AgentLine <span>console</span></h1>
+      <div id="modePills"></div>
+    </header>
+
+    <div id="banners"></div>
+
+    <!-- alerting: the one-click control -->
+    <div class="card">
+      <h2>Production alerting</h2>
+      <div class="toggle">
+        <button id="alertSwitch" class="switch" role="switch" aria-checked="false"
+                onclick="toggleAlerts()" title="Enable or disable email alerts"></button>
+        <div>
+          <div id="alertState" style="font-weight:600">—</div>
+          <div class="note" id="alertTarget">—</div>
+        </div>
+      </div>
+      <p class="note" id="alertTransport">—</p>
+      <div class="actions">
+        <button onclick="testAlert()" id="btnTest">Send test email</button>
+        <button onclick="simulate()" id="btnSim">Simulate an incident</button>
+        <button onclick="healthCheck()" id="btnHealth">Run health check</button>
+      </div>
+      <p class="note" id="alertResult"></p>
+    </div>
+
+    <!-- end-to-end test -->
+    <div class="card">
+      <h2>End-to-end test</h2>
+      <p class="note">Registers two agents, verifies identities, sends a real encrypted
+        message over Hedera, decrypts it on the other side, and checks that what was stored
+        is unreadable. Spends testnet USDC.</p>
+      <div class="actions">
+        <button class="primary" id="btnE2E" onclick="runE2E()">Run end-to-end test</button>
+      </div>
+      <div id="e2eOut"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><h2>Chain wiring</h2><div id="wiring"></div></div>
+      <div class="card"><h2>Health</h2><div id="health"></div></div>
+      <div class="card"><h2>Traffic</h2><div id="stats"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>Recent alerts</h2>
+      <div id="alerts"></div>
+    </div>
+
+    <p class="note" style="text-align:center">
+      <span id="refreshed">—</span> ·
+      <a href="/llms.txt" target="_blank">llms.txt</a> ·
+      <a href="/openapi.json" target="_blank">OpenAPI</a> ·
+      <a href="/v1/status" target="_blank">status</a>
+    </p>
+  </div>
+</div>
+
+<script>
+const KEY = 'agentline.adminToken';
+let token = new URLSearchParams(location.search).get('token') || localStorage.getItem(KEY) || '';
+let overview = null;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function api(path, opts = {}) {
+  const res = await fetch('/v1/admin' + path, {
+    ...opts,
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token, ...(opts.headers || {}) },
+  });
+  const text = await res.text();
+  let json; try { json = JSON.parse(text); } catch { json = { detail: text.slice(0, 300) }; }
+  if (!res.ok) throw new Error(json.detail || json.error || ('HTTP ' + res.status));
+  return json;
+}
+
+function saveToken() {
+  const v = $('tokenInput').value.trim();
+  if (!v) return;
+  token = v;
+  localStorage.setItem(KEY, v);
+  $('gateErr').textContent = '';
+  boot();
+}
+
+function row(k, v, cls) {
+  return `<div class="row"><span class="k">${esc(k)}</span><span class="v ${cls || ''}">${v}</span></div>`;
+}
+function pill(text, kind) { return `<span class="pill ${kind}">${esc(text)}</span>`; }
+function link(url, text) { return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text || url)}</a>` : '—'; }
+
+function render() {
+  const o = overview;
+
+  // mode pills
+  const consensusKind = o.modes.consensus.startsWith('hedera') ? 'ok'
+    : o.modes.consensus.includes('degraded') ? 'bad' : 'dim';
+  $('modePills').innerHTML = [
+    pill('consensus: ' + o.modes.consensus, consensusKind),
+    pill('registry: ' + o.modes.registry, o.modes.registry === 'onchain' ? 'ok' : 'dim'),
+    pill('payments: ' + o.modes.payments, o.modes.payments === 'disabled' ? 'dim'
+      : o.modes.payments === 'verify-only' ? 'warn' : 'ok'),
+  ].join(' ');
+
+  // banners — surface the things that would silently break a demo
+  const banners = [];
+  if (o.consensus.degradedFrom) {
+    banners.push(`<div class="banner bad"><b>Messages are not on Hedera.</b> The gateway fell back to the
+      local ledger: ${esc(o.consensus.degradedFrom)}</div>`);
+  }
+  if (!o.alerts.deliverable) {
+    banners.push(`<div class="banner warn"><b>Alerts are recorded but not emailed.</b>
+      No mail transport is configured — set <code>SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS</code>
+      (a Gmail app password works) or <code>RESEND_API_KEY</code>, then restart the gateway.</div>`);
+  } else if (!o.alerts.enabled) {
+    banners.push(`<div class="banner warn"><b>Alerting is off.</b> You will not be told about
+      production problems until you switch it back on.</div>`);
+  }
+  if (o.modes.payments === 'verify-only') {
+    banners.push(`<div class="banner warn"><b>Payments are verified but not settled.</b>
+      No money is actually moving (<code>X402_DEV_ACCEPT_UNSETTLED</code> is on).</div>`);
+  }
+  if (o.health && !o.health.ok && o.health.problems?.length) {
+    banners.push(`<div class="banner bad"><b>Health problems:</b> ${esc(o.health.problems.join(' · '))}</div>`);
+  }
+  if (!banners.length) banners.push(`<div class="banner ok">All systems nominal — consensus, registry and payments are live.</div>`);
+  $('banners').innerHTML = banners.join('');
+
+  // alerting panel
+  const sw = $('alertSwitch');
+  sw.setAttribute('aria-checked', String(!!o.alerts.enabled));
+  $('alertState').textContent = o.alerts.enabled ? 'Alerting is ON' : 'Alerting is OFF';
+  $('alertTarget').innerHTML = 'Emails go to <b>' + esc(o.alerts.to) + '</b>'
+    + ' · severity ≥ ' + esc(o.alerts.minSeverity)
+    + ' · throttled to 1 per ' + esc(o.alerts.throttleMinutes) + ' min per issue';
+  $('alertTransport').className = 'note ' + (o.alerts.deliverable ? 'ok' : 'bad');
+  $('alertTransport').textContent = 'Transport: ' + o.alerts.transportDescription;
+
+  // wiring
+  $('wiring').innerHTML = [
+    row('consensus', esc(o.consensus.kind) + (o.consensus.network ? ' · ' + esc(o.consensus.network) : '')),
+    row('topics', esc(o.consensus.topics ?? '—')),
+    row('operator', esc(o.consensus.operator ?? '—')),
+    row('explorer', link(o.consensus.explorer, 'hashscan')),
+    row('registry', link(o.registry.explorer, o.registry.address || 'local mirror')),
+    row('relayer', esc(o.registry.relayer ?? '—')),
+    row('network', esc(o.payments.network) + ' · ' + esc(o.payments.caip2)),
+    row('paid to', esc(o.payments.payTo ?? 'NOT SET')),
+    row('settlement', esc(o.modes.payments) + (o.payments.selfSettleFallback ? ' (+ self-settle fallback)' : '')),
+  ].join('');
+
+  // health
+  const h = o.health;
+  $('health').innerHTML = h ? [
+    row('checked', new Date(h.at).toLocaleTimeString()),
+    row('status', h.ok ? pill('ok', 'ok') : pill(h.problems.length + ' problem(s)', 'bad')),
+    h.consensus.hbar !== undefined ? row('operator HBAR', h.consensus.hbar.toFixed(2)) : '',
+    h.relayer ? row('relayer ETH', Number(h.relayer.eth).toFixed(5)) : '',
+    h.relayer ? row('relayer USDC', h.relayer.usdc) : '',
+    row('requests', esc(h.errors.total)),
+    row('5xx rate', esc(h.errors.rate)),
+  ].join('') : '<p class="empty">No health check has run yet.</p>';
+
+  // stats
+  $('stats').innerHTML = [
+    row('agents', esc(o.stats.agents)),
+    row('conversations', esc(o.stats.conversations)),
+    row('groups', esc(o.stats.groups)),
+    row('messages relayed', esc(o.stats.messagesSent)),
+    row('revenue', esc(o.stats.revenue) + ' USDC'),
+    row('uptime', Math.floor(o.service.uptimeSeconds / 60) + 'm ' + (o.service.uptimeSeconds % 60) + 's'),
+  ].join('');
+
+  // alerts table
+  const rows = o.alerts.recent || [];
+  $('alerts').innerHTML = rows.length ? `<table>
+    <thead><tr><th>when</th><th>severity</th><th>issue</th><th>delivery</th></tr></thead>
+    <tbody>${rows.map((a) => `<tr>
+      <td class="mono">${new Date(a.at).toLocaleTimeString()}</td>
+      <td>${pill(a.severity, a.severity === 'critical' ? 'bad' : a.severity === 'warning' ? 'warn' : 'dim')}</td>
+      <td><b>${esc(a.title)}</b><div class="mono" style="color:var(--dim)">${esc(a.detail).slice(0, 180)}</div>
+        ${a.suppressed ? `<div class="mono" style="color:var(--faint)">+${a.suppressed} more suppressed</div>` : ''}</td>
+      <td>${pill(a.delivery, a.delivery === 'sent' ? 'ok' : a.delivery === 'failed' || a.delivery === 'no_transport' ? 'bad' : 'dim')}
+        ${a.deliveryError ? `<div class="mono" style="color:var(--bad)">${esc(a.deliveryError).slice(0, 90)}</div>` : ''}</td>
+    </tr>`).join('')}</tbody></table>`
+    : '<p class="empty">No alerts recorded. That is the good outcome.</p>';
+
+  $('refreshed').textContent = 'refreshed ' + new Date().toLocaleTimeString();
+}
+
+async function refresh() {
+  overview = await api('/overview');
+  render();
+}
+
+async function boot() {
+  try {
+    await refresh();
+    $('gate').hidden = true;
+    $('app').hidden = false;
+  } catch (err) {
+    $('app').hidden = true;
+    $('gate').hidden = false;
+    if (token) $('gateErr').textContent = err.message;
+  }
+}
+
+function busy(id, on, label) {
+  const b = $(id);
+  if (!b) return;
+  b.disabled = on;
+  if (on) { b.dataset.label = b.textContent; b.innerHTML = '<span class="spin"></span> ' + (label || 'working…'); }
+  else if (b.dataset.label) b.textContent = b.dataset.label;
+}
+
+async function toggleAlerts() {
+  const sw = $('alertSwitch');
+  sw.disabled = true;
+  try {
+    const next = sw.getAttribute('aria-checked') !== 'true';
+    await api('/alerts/toggle', { method: 'POST', body: JSON.stringify({ enabled: next }) });
+    await refresh();
+    say(next ? 'Alerting enabled — you will be emailed about production issues.' : 'Alerting disabled.', next ? 'ok' : 'warn');
+  } catch (err) { say(err.message, 'bad'); }
+  sw.disabled = false;
+}
+
+function say(msg, kind) {
+  const el = $('alertResult');
+  el.className = 'note ' + (kind || '');
+  el.textContent = msg;
+}
+
+async function testAlert() {
+  busy('btnTest', true, 'sending…');
+  try {
+    const r = await api('/alerts/test', { method: 'POST' });
+    say(r.ok ? `Test email sent to ${r.to} via ${r.transport}. ${r.hint}` : `Could not send: ${r.error}. ${r.hint}`, r.ok ? 'ok' : 'bad');
+  } catch (err) { say(err.message, 'bad'); }
+  busy('btnTest', false); refresh();
+}
+
+async function simulate() {
+  busy('btnSim', true, 'raising…');
+  try {
+    const a = await api('/alerts/simulate', { method: 'POST', body: JSON.stringify({ severity: 'critical' }) });
+    say(`Incident raised and recorded. Delivery: ${a.delivery}.`, a.delivery === 'sent' ? 'ok' : 'warn');
+  } catch (err) { say(err.message, 'bad'); }
+  busy('btnSim', false); refresh();
+}
+
+async function healthCheck() {
+  busy('btnHealth', true, 'checking…');
+  try {
+    const h = await api('/health/check', { method: 'POST' });
+    say(h.ok ? 'Health check passed.' : 'Problems: ' + h.problems.join(' · '), h.ok ? 'ok' : 'bad');
+  } catch (err) { say(err.message, 'bad'); }
+  busy('btnHealth', false); refresh();
+}
+
+async function runE2E() {
+  busy('btnE2E', true, 'running (registers agents, pays, sends)…');
+  $('e2eOut').innerHTML = '';
+  try {
+    const r = await api('/e2e', { method: 'POST' });
+    const a = r.artifacts || {};
+    $('e2eOut').innerHTML = `
+      <div class="banner ${r.ok ? 'ok' : 'bad'}">${r.ok
+        ? 'All steps passed — the full path works: pay, sign, encrypt, submit to consensus, decrypt.'
+        : 'Some steps failed: ' + esc(r.error || 'see below')}</div>
+      <ol class="steps">${(r.steps || []).map((s) => `<li>
+        <span class="mark ${s.ok ? 'ok' : 'bad'}">${s.ok ? '✓' : '✗'}</span>
+        <span class="body"><span class="t">${esc(s.step)}</span>
+          <div class="d">${esc(s.detail)}</div>
+          ${s.meta ? `<div class="m">${esc(JSON.stringify(s.meta))}</div>` : ''}</span></li>`).join('')}</ol>
+      <div style="margin-top:12px">
+        ${row('conversation', esc(a.cid || '—'))}
+        ${row('HCS topic', esc(a.topicId || '—'))}
+        ${row('mirror node', link(a.mirrorNode, 'read the raw ciphertext'))}
+        ${row('hashscan', link(a.hashscan, 'view topic'))}
+        ${row('settlement tx', link(a.settlementTx, 'view payment'))}
+        ${row('registry', link(a.registryExplorer, 'view contract'))}
+      </div>`;
+  } catch (err) {
+    $('e2eOut').innerHTML = `<div class="banner bad">${esc(err.message)}</div>`;
+  }
+  busy('btnE2E', false); refresh();
+}
+
+if (token) boot(); else { $('gate').hidden = false; }
+setInterval(() => { if (overview) refresh().catch(() => {}); }, 15000);
+</script>
+</body>
+</html>
