@@ -79,6 +79,19 @@ async function main() {
     } catch (err) { bad(`${label} key unusable: ${(err as Error).message}`); }
   }
 
+  console.log('\nAlerting');
+  {
+    const { alertConfig, mailConfigIssue, transportKind, transportDescription } = await import('../apps/gateway/src/services/alerts.ts');
+    const cfg = alertConfig();
+    cfg.enabled ? ok(`enabled, emailing ${cfg.to} (severity >= ${cfg.minSeverity})`) : warn(`disabled — no incident emails will be sent`);
+    const kind = transportKind();
+    if (kind === 'none') bad('no mail transport — alerts are recorded but NOT delivered. Set SMTP_HOST/PORT/USER/PASS (Gmail App Password) or RESEND_API_KEY');
+    else {
+      const issue = mailConfigIssue();
+      issue ? bad(issue) : ok(transportDescription());
+    }
+  }
+
   console.log(`\nGateway will start in: consensus=${chainMode()} registry=${registryMode()} payments=${paymentMode()}`);
   console.log('Everything above can be left unset for a local demo — the gateway degrades to a local');
   console.log('consensus ledger and a local registry mirror, and the protocol behaves identically.\n');

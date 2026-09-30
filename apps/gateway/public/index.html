@@ -212,6 +212,8 @@ function render() {
     banners.push(`<div class="banner warn"><b>Alerts are recorded but not emailed.</b>
       No mail transport is configured — set <code>SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS</code>
       (a Gmail app password works) or <code>RESEND_API_KEY</code>, then restart the gateway.</div>`);
+  } else if (o.alerts.configIssue) {
+    banners.push(`<div class="banner bad"><b>Mail credentials look wrong.</b> ${esc(o.alerts.configIssue)}</div>`);
   } else if (!o.alerts.enabled) {
     banners.push(`<div class="banner warn"><b>Alerting is off.</b> You will not be told about
       production problems until you switch it back on.</div>`);

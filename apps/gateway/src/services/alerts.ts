@@ -87,15 +87,52 @@ const lastSent = new Map<string, { at: number; alertId: string }>();
 
 export type TransportKind = 'smtp' | 'resend' | 'none';
 
+/**
+ * Google displays an app password as four space-separated groups ("abcd efgh ijkl mnop").
+ * The spaces are presentation only — SMTP AUTH rejects them — so strip all whitespace.
+ * Also tolerate a value the operator wrapped in quotes.
+ */
+export function smtpPassword(): string {
+  const raw = process.env.SMTP_PASS ?? '';
+  return raw.trim().replace(/^["']|["']$/g, '').replace(/\s+/g, '');
+}
+
 export function transportKind(): TransportKind {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) return 'smtp';
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPassword()) return 'smtp';
   if (process.env.RESEND_API_KEY) return 'resend';
   return 'none';
 }
 
+/**
+ * Catch the credential mistakes that otherwise only show up as an SMTP auth failure at
+ * the moment you most need the alert to go out.
+ */
+export function mailConfigIssue(): string | null {
+  if (transportKind() !== 'smtp') return null;
+  const host = (process.env.SMTP_HOST ?? '').trim();
+  const pass = smtpPassword();
+  const user = (process.env.SMTP_USER ?? '').trim();
+
+  if (/gmail\.com$/i.test(host) || /@gmail\.com$/i.test(user)) {
+    if (pass.length !== 16) {
+      return `SMTP_PASS is ${pass.length} characters after removing spaces; a Google App Password is exactly 16. `
+        + 'A normal account password will be rejected by Gmail — generate one under '
+        + 'Google Account > Security > 2-Step Verification > App passwords.';
+    }
+    if (!/^[a-z]{16}$/i.test(pass)) {
+      return 'SMTP_PASS does not look like a Google App Password (16 letters). Double-check what you pasted.';
+    }
+  }
+  if (!/^\d+$/.test((process.env.SMTP_PORT ?? '587').trim())) return 'SMTP_PORT must be a number (587 for STARTTLS, 465 for TLS).';
+  return null;
+}
+
 export function transportDescription(): string {
   switch (transportKind()) {
-    case 'smtp': return `SMTP ${process.env.SMTP_HOST} as ${process.env.SMTP_USER}`;
+    case 'smtp': {
+      const issue = mailConfigIssue();
+      return `SMTP ${process.env.SMTP_HOST} as ${process.env.SMTP_USER}${issue ? ` — WARNING: ${issue}` : ''}`;
+    }
     case 'resend': return 'Resend HTTP API';
     default: return 'none configured — alerts are recorded but NOT emailed';
   }
@@ -105,12 +142,12 @@ let smtp: Transporter | null = null;
 
 function smtpTransport(): Transporter {
   if (!smtp) {
-    const port = Number(process.env.SMTP_PORT ?? 587);
+    const port = Number((process.env.SMTP_PORT ?? '587').trim());
     smtp = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: (process.env.SMTP_HOST ?? '').trim(),
       port,
       secure: port === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      auth: { user: (process.env.SMTP_USER ?? '').trim(), pass: smtpPassword() },
     });
   }
   return smtp;
@@ -121,7 +158,18 @@ async function sendEmail(to: string, subject: string, text: string): Promise<voi
   const from = process.env.ALERT_EMAIL_FROM ?? process.env.SMTP_USER ?? 'alerts@agentline.local';
 
   if (kind === 'smtp') {
-    await smtpTransport().sendMail({ from, to, subject, text });
+    try {
+      await smtpTransport().sendMail({ from, to, subject, text });
+    } catch (err) {
+      const message = (err as Error).message;
+      if (/invalid login|username and password not accepted|535|534/i.test(message)) {
+        throw new Error(
+          `${message} — Gmail rejected the credentials. Use a 16-character App Password, not the account password, `
+          + 'and make sure 2-Step Verification is on for that account.',
+        );
+      }
+      throw err;
+    }
     return;
   }
   if (kind === 'resend') {

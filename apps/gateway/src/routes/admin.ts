@@ -15,7 +15,8 @@ import { chainMode, config, paymentMode, registryMode } from '../config.ts';
 import { handler } from '../lib/http.ts';
 import { store } from '../lib/store.ts';
 import {
-  alertConfig, alertHistory, raiseAlert, sendTestAlert, setAlertsEnabled, transportDescription, transportKind,
+  alertConfig, alertHistory, mailConfigIssue, raiseAlert, sendTestAlert, setAlertsEnabled,
+  transportDescription, transportKind,
 } from '../services/alerts.ts';
 import { lastHealth, runHealthCheck } from '../services/health.ts';
 import { ledger, ledgerDegraded } from '../services/ledger.ts';
@@ -79,6 +80,7 @@ adminRouter.get('/overview', handler(async (_req, res) => {
       transport: transportKind(),
       transportDescription: transportDescription(),
       deliverable: transportKind() !== 'none',
+      configIssue: mailConfigIssue(),
       recent: alertHistory(25),
     },
     health,
