@@ -1,0 +1,9 @@
+node_modules
+.env
+.env.local
+dist
+.data
+contracts/out
+contracts/cache
+*.log
+.data/
