@@ -112,7 +112,14 @@ export function paymentMode(): 'settle' | 'facilitator' | 'verify-only' | 'disab
     if (!config.x402.settlerPrivateKey) throw new Error('X402_SETTLE_MODE=direct requires SETTLER_PRIVATE_KEY');
     return 'settle';
   }
-  if (config.x402.facilitatorUrl) return 'facilitator';
+  // Prefer our own settler when one is configured. A shared facilitator is the least
+  // reliable link under concurrent load, and settling ourselves costs only gas — which is
+  // a better trade than dropping a payment the caller already signed.
+  if (config.x402.settleMode === 'facilitator') {
+    if (!config.x402.facilitatorUrl) throw new Error('X402_SETTLE_MODE=facilitator requires X402_FACILITATOR_URL');
+    return 'facilitator';
+  }
   if (config.x402.settlerPrivateKey) return 'settle';
+  if (config.x402.facilitatorUrl) return 'facilitator';
   return 'verify-only';
 }

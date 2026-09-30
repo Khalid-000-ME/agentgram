@@ -21,6 +21,7 @@ import {
 import { config, paymentMode } from '../config.ts';
 import { store } from '../lib/store.ts';
 import { raiseAlert } from '../services/alerts.ts';
+import { resetNonce, withNonce } from '../services/nonce-manager.ts';
 
 const EIP3009_TYPES = {
   TransferWithAuthorization: [
@@ -168,31 +169,51 @@ async function settleViaFacilitator(payload: PaymentPayload, required: PaymentRe
   }
 }
 
-/** Settle ourselves: submit the payer's authorization to USDC's transferWithAuthorization. */
+/**
+ * Settle ourselves: submit the payer's authorization to USDC's transferWithAuthorization.
+ *
+ * Under concurrent load this is where a naive implementation breaks: many payments arrive
+ * at once, all settled from one settler wallet, and independently-assigned nonces collide
+ * so some transfers silently replace others. Nonce assignment therefore goes through the
+ * shared per-account manager — the same authority the registry writer uses, which matters
+ * because the settler and the relayer are often the same wallet.
+ */
 async function settleDirect(payload: PaymentPayload, required: PaymentRequirements): Promise<SettleResponse> {
   const account = privateKeyToAccount(config.x402.settlerPrivateKey!);
   const wallet = createWalletClient({ account, chain: chain(), transport: http(config.x402.rpcUrl) });
   const client = publicClient();
   const a = payload.payload.authorization;
   try {
+    // EIP-3009 authorizations are single-use on-chain. If this one is already consumed the
+    // payment has landed, and reporting failure would charge the caller twice.
     const already = await client.readContract({
       address: required.asset as Address, abi: USDC_3009_ABI, functionName: 'authorizationState',
       args: [a.from, a.nonce],
     });
-    if (already) return { success: false, network: required.network, errorReason: 'authorization already used on-chain' };
+    if (already) {
+      return { success: true, network: required.network, payer: a.from, errorReason: 'authorization already used on-chain' };
+    }
 
-    const hash = await wallet.writeContract({
+    const hash = await withNonce(client, account.address, (nonce) => wallet.writeContract({
       address: required.asset as Address, abi: USDC_3009_ABI, functionName: 'transferWithAuthorization',
       args: [a.from, a.to, BigInt(a.value), BigInt(a.validAfter), BigInt(a.validBefore), a.nonce, payload.payload.signature],
-      chain: chain(), account,
-    });
+      chain: chain(), account, nonce,
+    }));
+
     const receipt = await client.waitForTransactionReceipt({ hash, timeout: 90_000 });
     return {
       success: receipt.status === 'success', transaction: hash, network: required.network, payer: a.from,
       errorReason: receipt.status === 'success' ? undefined : 'transaction reverted',
     };
   } catch (err) {
-    return { success: false, network: required.network, errorReason: (err as Error).message.split('\n')[0] };
+    const message = (err as Error).message.split('\n')[0];
+    if (/nonce/i.test(message)) resetNonce(account.address);
+    // A transfer whose authorization was consumed while we were submitting still means the
+    // money moved.
+    if (/authorization is used|invalid authorization state/i.test(message)) {
+      return { success: true, network: required.network, payer: a.from, errorReason: 'authorization consumed concurrently' };
+    }
+    return { success: false, network: required.network, errorReason: message };
   }
 }
 
@@ -218,6 +239,7 @@ async function settle(payload: PaymentPayload, required: PaymentRequirements): P
   } else {
     attempts.push(() => settleDirect(payload, required));
     attempts.push(() => settleDirect(payload, required));
+    if (config.x402.facilitatorUrl) attempts.push(() => settleViaFacilitator(payload, required));
   }
 
   let last: SettleResponse = { success: false, network: required.network, errorReason: 'no settlement attempted' };

@@ -200,6 +200,7 @@ miscRouter.get('/status', handler(async (_req, res) => {
       payments: paymentMode(),
     },
     consensus: { ...ledger().info(), degradedFrom: ledgerDegraded() ?? undefined },
+    registryWrites: registry.writerStats() ?? undefined,
     registry: registry.info(),
     payments: {
       network: config.x402.network, caip2: config.x402.caip2, asset: config.x402.asset,

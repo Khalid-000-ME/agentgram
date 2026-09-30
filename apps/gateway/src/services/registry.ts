@@ -14,6 +14,7 @@ import { handleHash, idToBytes32, normalizeHandle, b64, hexs } from '@agentline/
 import { config, registryMode } from '../config.ts';
 import { store, type AgentRecord } from '../lib/store.ts';
 import { raiseAlert } from './alerts.ts';
+import { RegistryWriter, type WriteResult, type WriterStats } from './registry-writer.ts';
 import registryArtifact from '../abi/registry.json' with { type: 'json' };
 
 export const REGISTRY_ABI = registryArtifact.abi as unknown as Abi;
@@ -62,7 +63,7 @@ class RegistryService {
   private account = config.registry.relayerPrivateKey
     ? privateKeyToAccount(config.registry.relayerPrivateKey)
     : null;
-  private queue: Promise<unknown> = Promise.resolve();
+  private writer: RegistryWriter | null = null;
 
   get address(): Address | undefined { return config.registry.address as Address | undefined; }
 
@@ -86,39 +87,63 @@ class RegistryService {
 
   get onchain(): boolean { return this.mode === 'onchain' && !!this.address && !!this.account; }
 
+  private pipeline(): RegistryWriter {
+    if (!this.writer) {
+      this.writer = new RegistryWriter(REGISTRY_ABI, this.address);
+    }
+    return this.writer;
+  }
+
   /**
-   * Serialize writes through one queue: a single relayer account has one nonce, and
-   * parallel writes would otherwise collide under load.
+   * Submit a write through the lane pipeline.
+   *
+   * `partition` keeps dependent writes for one entity in order (an agent must exist before
+   * its prekeys can be published), while unrelated entities go down separate lanes
+   * concurrently. A write that cannot land right now is buffered and retried rather than
+   * dropped — the caller has already paid for it.
    */
-  private async write(fn: string, args: unknown[]): Promise<string | undefined> {
+  private async write(fn: string, args: unknown[], partition: string): Promise<string | undefined> {
     if (!this.onchain) return undefined;
-    const run = this.queue.then(async () => {
-      const { publicClient, walletClient } = this.clients();
-      const hash = await walletClient!.writeContract({
-        address: this.address!, abi: REGISTRY_ABI, functionName: fn, args: args as never,
-        chain: this.chain(), account: this.account!,
-      });
-      await publicClient!.waitForTransactionReceipt({ hash, confirmations: 1, timeout: 90_000 });
-      return hash as string;
-    });
-    this.queue = run.catch(() => undefined);
-    try {
-      return await run;
-    } catch (err) {
-      const message = (err as Error).message.split('\n')[0];
-      console.error(`[registry] ${fn} failed:`, message);
-      // Reads still work from the local mirror, so this degrades rather than breaks — but
-      // on-chain state is now behind, which the operator must know about.
+    const result: WriteResult = await this.pipeline().submit(fn, args, partition);
+
+    if (result.ok) return result.txHash;
+
+    const message = result.error ?? 'unknown error';
+    if (result.queued) {
+      // Not a failure the caller can act on: reads still work from the local mirror and the
+      // write will land once the chain is reachable again.
+      console.warn(`[registry] ${fn} buffered for retry: ${message}`);
       raiseAlert({
         severity: 'warning',
-        kind: `registry.write_failed.${fn}`,
-        title: `Registry write failed: ${fn}`,
-        detail: `The on-chain registry did not accept ${fn}. Local state is ahead of the contract until this is resolved. Cause: ${message}`,
-        meta: { function: fn, contract: this.address, chainId: config.registry.chainId, relayer: this.relayerAddress },
+        kind: `registry.buffered.${fn}`,
+        title: `Registry write buffered: ${fn}`,
+        detail: `The write could not land immediately and is queued for retry. On-chain state is temporarily behind. Cause: ${message}`,
+        meta: { function: fn, partition, contract: this.address, queued: this.pipeline().statistics().queued },
       });
       return undefined;
     }
+
+    console.error(`[registry] ${fn} failed:`, message);
+    raiseAlert({
+      severity: 'critical',
+      kind: `registry.write_failed.${fn}`,
+      title: `Registry write failed: ${fn}`,
+      detail: `The on-chain registry did not accept ${fn} and the write was not recoverable. Local state is ahead of the contract. Cause: ${message}`,
+      meta: { function: fn, partition, contract: this.address, chainId: config.registry.chainId },
+    });
+    return undefined;
   }
+
+  /** Queue depth and lane health, surfaced in the operator console. */
+  writerStats(): WriterStats | null {
+    return this.onchain ? this.pipeline().statistics() : null;
+  }
+
+  async drainWrites(): Promise<number> {
+    return this.onchain ? this.pipeline().drain() : 0;
+  }
+
+  shutdown(): void { this.writer?.shutdown(); }
 
   async read<T>(fn: string, args: unknown[]): Promise<T | undefined> {
     if (!this.address) return undefined;
@@ -146,33 +171,33 @@ class RegistryService {
       dmPolicyIndex(a.dmPolicy),
       encodeFlags(a.flags),
       a.handle ? handleHash(a.handle) : ('0x' + '00'.repeat(32)) as Hex,
-    ]);
+    ], a.agentId);
   }
 
   async updateAgent(a: AgentRecord): Promise<string | undefined> {
-    return this.write('updateAgent', [idToBytes32(a.agentId), dmPolicyIndex(a.dmPolicy), encodeFlags(a.flags)]);
+    return this.write('updateAgent', [idToBytes32(a.agentId), dmPolicyIndex(a.dmPolicy), encodeFlags(a.flags)], a.agentId);
   }
 
   async claimHandle(agentId: string, handle: string, durationSeconds = 365 * 24 * 3600) {
-    return this.write('claimHandle', [idToBytes32(agentId), handleHash(normalizeHandle(handle)), BigInt(durationSeconds)]);
+    return this.write('claimHandle', [idToBytes32(agentId), handleHash(normalizeHandle(handle)), BigInt(durationSeconds)], agentId);
   }
 
   async publishPrekeys(agentId: string, deviceId: string, bundleId: string, signedPrekeyHash: Hex, remaining: number) {
     return this.write('publishPrekeys', [
       idToBytes32(agentId), idToBytes32(deviceId), idToBytes32(bundleId), signedPrekeyHash, remaining,
-    ]);
+    ], agentId);
   }
 
   async addDevice(agentId: string, deviceId: string) {
-    return this.write('addDevice', [idToBytes32(agentId), idToBytes32(deviceId)]);
+    return this.write('addDevice', [idToBytes32(agentId), idToBytes32(deviceId)], agentId);
   }
 
   async removeDevice(agentId: string, deviceId: string) {
-    return this.write('removeDevice', [idToBytes32(agentId), idToBytes32(deviceId)]);
+    return this.write('removeDevice', [idToBytes32(agentId), idToBytes32(deviceId)], agentId);
   }
 
   async tombstone(agentId: string) {
-    return this.write('tombstoneAgent', [idToBytes32(agentId)]);
+    return this.write('tombstoneAgent', [idToBytes32(agentId)], agentId);
   }
 
   async openConversation(c: {
@@ -187,14 +212,14 @@ class RegistryService {
       c.kind,
       c.mode === 'open' ? 0 : 1,
       (c.tag ? ('0x' + Buffer.from(b64.dec(c.tag)).toString('hex').slice(0, 32)) : '0x' + '00'.repeat(16)) as Hex,
-    ]);
+    ], c.a ?? c.cid);
   }
 
   async createGroup(g: { groupId: string; creator: string; topicId: string; membersRoot: Hex; members: string[]; settings: number }) {
     return this.write('createGroup', [
       idToBytes32(g.groupId), idToBytes32(g.creator), topicNum(g.topicId), g.membersRoot,
       g.members.map(idToBytes32), g.settings,
-    ]);
+    ], g.groupId);
   }
 
   async commitMembership(g: {
@@ -203,23 +228,23 @@ class RegistryService {
     return this.write('commitMembership', [
       idToBytes32(g.groupId), idToBytes32(g.actor), g.added.map(idToBytes32), g.removed.map(idToBytes32),
       g.membersRoot, g.memberCount,
-    ]);
+    ], g.groupId);
   }
 
   async createInvite(groupId: string, actor: string, inviteHash: Hex, expiry: number, maxUses: number) {
-    return this.write('createInvite', [idToBytes32(groupId), idToBytes32(actor), inviteHash, BigInt(expiry), maxUses]);
+    return this.write('createInvite', [idToBytes32(groupId), idToBytes32(actor), inviteHash, BigInt(expiry), maxUses], groupId);
   }
 
   async redeemInvite(inviteHash: Hex, agentId: string, membersRoot: Hex, memberCount: number) {
-    return this.write('redeemInvite', [inviteHash, idToBytes32(agentId), membersRoot, memberCount]);
+    return this.write('redeemInvite', [inviteHash, idToBytes32(agentId), membersRoot, memberCount], agentId);
   }
 
   async createChannel(channelId: string, owner: string, topicId: string, encrypted: boolean) {
-    return this.write('createChannel', [idToBytes32(channelId), idToBytes32(owner), topicNum(topicId), encrypted]);
+    return this.write('createChannel', [idToBytes32(channelId), idToBytes32(owner), topicNum(topicId), encrypted], channelId);
   }
 
   async setFollowing(channelId: string, agentId: string, following: boolean) {
-    return this.write('setFollowing', [idToBytes32(channelId), idToBytes32(agentId), following]);
+    return this.write('setFollowing', [idToBytes32(channelId), idToBytes32(agentId), following], agentId);
   }
 
   /* ---------------------------------------------------------------- reads */
