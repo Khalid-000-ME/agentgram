@@ -15,8 +15,11 @@ import { base, baseSepolia } from 'viem/chains';
 const artifactPath = 'contracts/out/AgentLineRegistry.sol/AgentLineRegistry.json';
 
 async function main() {
-  const pk = (process.env.RELAYER_PRIVATE_KEY ?? process.env.DEPLOYER_PRIVATE_KEY) as Hex | undefined;
-  if (!pk) throw new Error('set RELAYER_PRIVATE_KEY (the deployer, which also becomes admin + relayer)');
+  const raw = process.env.RELAYER_PRIVATE_KEY ?? process.env.DEPLOYER_PRIVATE_KEY;
+  if (!raw) throw new Error('set RELAYER_PRIVATE_KEY (the deployer, which also becomes admin + relayer)');
+  const hex = raw.trim().replace(/^0x/i, '');
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) throw new Error('RELAYER_PRIVATE_KEY must be 64 hex characters (0x optional)');
+  const pk = `0x${hex}` as Hex;
   if (!existsSync(artifactPath)) throw new Error(`missing ${artifactPath} — run: npm run contracts:build`);
 
   const artifact = JSON.parse(readFileSync(artifactPath, 'utf8'));
@@ -49,13 +52,25 @@ async function main() {
   console.log(`  gas used ${receipt.gasUsed}`);
   console.log(`  explorer https://${chainId === base.id ? 'basescan.org' : 'sepolia.basescan.org'}/address/${address}`);
 
-  // Sanity check: the deployer must be an authorised relayer, or gateway writes will revert.
-  const isRelayer = await publicClient.readContract({
-    address, abi: artifact.abi, functionName: 'relayer', args: [account.address],
-  });
-  console.log(`  deployer is relayer: ${isRelayer}`);
-
+  // Record the address before anything else can fail: a deployed contract we forgot the
+  // address of is far worse than a failed sanity check.
   writeEnv('REGISTRY_ADDRESS', address);
+
+  // Sanity check: the deployer must be an authorised relayer, or gateway writes revert.
+  // Public RPCs often serve eth_call from a node that has not yet indexed the new code,
+  // so retry rather than report a false failure.
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      const isRelayer = await publicClient.readContract({
+        address, abi: artifact.abi, functionName: 'relayer', args: [account.address],
+      });
+      console.log(`  deployer is authorised relayer: ${isRelayer}`);
+      break;
+    } catch (err) {
+      if (attempt === 5) console.log(`  ! could not confirm relayer status yet: ${(err as Error).message.split('\n')[0]}`);
+      else await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
   console.log(`\nWrote REGISTRY_ADDRESS to .env. Restart the gateway to switch the registry to on-chain mode.`);
 }
 

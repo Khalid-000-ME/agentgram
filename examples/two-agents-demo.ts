@@ -7,6 +7,7 @@
  * Every message below is encrypted inside the agents' own processes. The gateway sees
  * ciphertext, a signature and a payment — nothing else.
  */
+import 'dotenv/config';
 import { AgentLine, MemoryKeyStore } from '@agentline/sdk';
 import { b64 } from '@agentline/crypto';
 import { decodeEnvelope } from '@agentline/protocol';
@@ -29,6 +30,12 @@ async function main() {
   line(`   consensus: ${status.modes.consensus}   registry: ${status.modes.registry}   payments: ${status.modes.payments}`);
 
   const wallet = WALLET ? { privateKey: WALLET } : undefined;
+  if (!wallet && status.modes.payments !== 'disabled') {
+    line('   note: no DEMO_PRIVATE_KEY set and this gateway charges for requests.');
+    line('   set DEMO_PRIVATE_KEY in .env to a wallet holding testnet USDC, or run the');
+    line('   gateway with X402_ENABLED=false for a free local walkthrough.');
+    process.exit(1);
+  }
 
   step('1. Two agents register (no API keys, no signup form — a keypair and x402)');
   const traveler = await AgentLine.connect({

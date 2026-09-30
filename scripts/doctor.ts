@@ -54,8 +54,12 @@ async function main() {
     config.x402.payTo ? ok(`receiving to ${config.x402.payTo}`) : bad('X402_PAY_TO is unset — paid routes will fail');
     ok(`network ${config.x402.network} (${config.x402.caip2}), asset ${config.x402.asset}`);
     if (mode === 'settle') ok('settling directly with SETTLER_PRIVATE_KEY');
-    else if (mode === 'facilitator') ok(`settling via facilitator ${config.x402.facilitatorUrl}`);
-    else warn('verify-only: payment authorizations are verified but never settled (X402_DEV_ACCEPT_UNSETTLED=true)');
+    else if (mode === 'facilitator') {
+      ok(`settling via facilitator ${config.x402.facilitatorUrl}`);
+      config.x402.settlerPrivateKey
+        ? ok('self-settlement configured as the fallback if the facilitator fails')
+        : warn('no SETTLER_PRIVATE_KEY: a facilitator outage means paid routes stop working');
+    } else warn('verify-only: payment authorizations are verified but never settled (X402_DEV_ACCEPT_UNSETTLED=true)');
   }
 
   const chain = config.x402.chainId === base.id ? base : baseSepolia;

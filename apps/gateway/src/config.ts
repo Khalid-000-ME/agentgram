@@ -6,6 +6,20 @@ function bool(v: string | undefined, dflt: boolean): boolean {
   return ['1', 'true', 'yes', 'on'].includes(v.toLowerCase());
 }
 
+/**
+ * Accept an EVM private key with or without the 0x prefix. Wallets and faucets export it
+ * both ways, and viem only accepts the prefixed form — so normalise rather than fail with
+ * an opaque error deep inside a signing call.
+ */
+function evmKey(v: string | undefined): `0x${string}` | undefined {
+  if (!v) return undefined;
+  const hex = v.trim().replace(/^0x/i, '');
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+    throw new Error(`invalid EVM private key: expected 64 hex characters, got ${hex.length}`);
+  }
+  return `0x${hex}` as `0x${string}`;
+}
+
 const network = process.env.X402_NETWORK ?? 'base-sepolia';
 const net = NETWORKS[network];
 if (!net) throw new Error(`unsupported X402_NETWORK: ${network}`);
@@ -29,8 +43,10 @@ export const config = {
     assetVersion: process.env.X402_ASSET_VERSION ?? net.usdcVersion,
     payTo: (process.env.X402_PAY_TO ?? '') as `0x${string}`,
     facilitatorUrl: process.env.X402_FACILITATOR_URL ?? 'https://x402.org/facilitator',
+    /** 'facilitator' (default when a URL is set) or 'direct' to always self-settle. */
+    settleMode: (process.env.X402_SETTLE_MODE ?? '') as '' | 'facilitator' | 'direct',
     /** Optional: settle EIP-3009 authorizations ourselves instead of via a facilitator. */
-    settlerPrivateKey: process.env.SETTLER_PRIVATE_KEY as `0x${string}` | undefined,
+    settlerPrivateKey: evmKey(process.env.SETTLER_PRIVATE_KEY),
     rpcUrl: process.env.BASE_SEPOLIA_RPC_URL ?? 'https://sepolia.base.org',
     maxTimeoutSeconds: Number(process.env.X402_MAX_TIMEOUT ?? 120),
   },
@@ -54,7 +70,7 @@ export const config = {
     address: process.env.REGISTRY_ADDRESS as `0x${string}` | undefined,
     rpcUrl: process.env.REGISTRY_RPC_URL ?? process.env.BASE_SEPOLIA_RPC_URL ?? 'https://sepolia.base.org',
     chainId: Number(process.env.REGISTRY_CHAIN_ID ?? net.chainId),
-    relayerPrivateKey: process.env.RELAYER_PRIVATE_KEY as `0x${string}` | undefined,
+    relayerPrivateKey: evmKey(process.env.RELAYER_PRIVATE_KEY),
     /** Mirror registry writes locally as well, so reads work while a tx is pending. */
     writeThrough: bool(process.env.REGISTRY_WRITE_THROUGH, true),
   },
@@ -82,9 +98,21 @@ export function registryMode(): 'onchain' | 'local' {
   return config.registry.address && config.registry.relayerPrivateKey ? 'onchain' : 'local';
 }
 
+/**
+ * How verified payments get settled.
+ *
+ * A facilitator is preferred when one is configured because it costs us no gas; a settler
+ * key then serves as the fallback path (see settle() in middleware/x402.ts). Set
+ * X402_SETTLE_MODE=direct to always submit transfers ourselves.
+ */
 export function paymentMode(): 'settle' | 'facilitator' | 'verify-only' | 'disabled' {
   if (!config.x402.enabled) return 'disabled';
+  if (config.x402.devAcceptUnsettled) return 'verify-only';
+  if (config.x402.settleMode === 'direct') {
+    if (!config.x402.settlerPrivateKey) throw new Error('X402_SETTLE_MODE=direct requires SETTLER_PRIVATE_KEY');
+    return 'settle';
+  }
+  if (config.x402.facilitatorUrl) return 'facilitator';
   if (config.x402.settlerPrivateKey) return 'settle';
-  if (config.x402.facilitatorUrl && !config.x402.devAcceptUnsettled) return 'facilitator';
   return 'verify-only';
 }

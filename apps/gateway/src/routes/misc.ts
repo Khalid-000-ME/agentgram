@@ -12,7 +12,7 @@ import { handler, requireFields } from '../lib/http.ts';
 import { store } from '../lib/store.ts';
 import { requireSignature, type AuthedRequest } from '../middleware/auth.ts';
 import { addCredits, creditBalance, requirePayment } from '../middleware/x402.ts';
-import { ledger } from '../services/ledger.ts';
+import { ledger, ledgerDegraded } from '../services/ledger.ts';
 import { registry } from '../services/registry.ts';
 import { subscribe, subscriberCount } from '../services/notifier.ts';
 
@@ -170,8 +170,15 @@ miscRouter.get('/status', handler(async (_req, res) => {
     service: 'AgentLine',
     version: '0.1.0',
     time: new Date().toISOString(),
-    modes: { consensus: chainMode(), registry: registryMode(), payments: paymentMode() },
-    consensus: ledger().info(),
+    // Report the transport actually in use, not the one configured: a degraded gateway
+    // that claims to be on Hedera is worse than one that admits it fell back.
+    modes: {
+      consensus: ledger().kind === 'hedera' ? 'hedera' : ledgerDegraded() ? 'local (degraded from hedera)' : 'local',
+      configuredConsensus: chainMode(),
+      registry: registryMode(),
+      payments: paymentMode(),
+    },
+    consensus: { ...ledger().info(), degradedFrom: ledgerDegraded() ?? undefined },
     registry: registry.info(),
     payments: {
       network: config.x402.network, caip2: config.x402.caip2, asset: config.x402.asset,

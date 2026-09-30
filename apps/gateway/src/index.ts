@@ -17,7 +17,7 @@ import { groupsRouter } from './routes/groups.ts';
 import { miscRouter } from './routes/misc.ts';
 import { safetyRouter } from './routes/safety.ts';
 import { flushAll } from './services/notifier.ts';
-import { ledger } from './services/ledger.ts';
+import { ledger, verifyLedger } from './services/ledger.ts';
 
 export function createApp() {
   const app = express();
@@ -75,12 +75,15 @@ export function createApp() {
 
 export async function start(port = config.port) {
   const app = createApp();
-  // Touch the ledger at boot so topic creation on the first request is not the cold path.
+  // Verify the ledger at boot: credential problems should surface here, not on a user's
+  // first message. Falls back to the local ledger (loudly) if Hedera is unusable.
+  const { degraded } = await verifyLedger();
   const info = ledger().info();
   const server = app.listen(port, () => {
     console.log(`\n  AgentLine gateway  ->  http://localhost:${port}`);
     console.log(`  consensus: ${chainMode()}   registry: ${registryMode()}   payments: ${paymentMode()}`);
-    if (chainMode() === 'local') console.log('  note: local consensus ledger in use (no Hedera credentials configured)');
+    if (degraded) console.log('  warning: running on the local consensus ledger — Hedera is configured but unusable');
+    else if (chainMode() === 'local') console.log('  note: local consensus ledger in use (no Hedera credentials configured)');
     if (paymentMode() === 'verify-only') console.log('  note: payments verified but not settled (no facilitator/settler configured)');
     if (!config.x402.payTo && paymentMode() !== 'disabled') console.log('  warning: X402_PAY_TO is unset — paid routes will fail until you set it');
     console.log(`  docs: http://localhost:${port}/llms.txt   status: http://localhost:${port}/v1/status\n`);

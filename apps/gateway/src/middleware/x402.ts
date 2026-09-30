@@ -196,6 +196,48 @@ async function settleDirect(payload: PaymentPayload, required: PaymentRequiremen
 }
 
 /**
+ * Settle a verified authorization.
+ *
+ * Preference order, and why: a facilitator costs us no gas, so try it first; public RPCs
+ * and shared facilitators fail transiently, so retry a couple of times; and if a settler
+ * key is configured, fall back to submitting the transfer ourselves rather than making the
+ * caller redo a payment that was already cryptographically valid.
+ */
+async function settle(payload: PaymentPayload, required: PaymentRequirements): Promise<SettleResponse> {
+  const mode = paymentMode();
+  if (mode === 'verify-only') {
+    return { success: true, network: required.network, payer: payload.payload.authorization.from };
+  }
+
+  const attempts: Array<() => Promise<SettleResponse>> = [];
+  if (mode === 'facilitator') {
+    attempts.push(() => settleViaFacilitator(payload, required));
+    attempts.push(() => settleViaFacilitator(payload, required));
+    if (config.x402.settlerPrivateKey) attempts.push(() => settleDirect(payload, required));
+  } else {
+    attempts.push(() => settleDirect(payload, required));
+    attempts.push(() => settleDirect(payload, required));
+  }
+
+  let last: SettleResponse = { success: false, network: required.network, errorReason: 'no settlement attempted' };
+  for (let i = 0; i < attempts.length; i++) {
+    last = await attempts[i]();
+    if (last.success) {
+      if (i > 0) console.warn(`[x402] settled on attempt ${i + 1}`);
+      return last;
+    }
+    // An authorization already consumed on-chain means the payment did land: treat it as
+    // settled rather than charging the caller twice.
+    if (/already used/i.test(last.errorReason ?? '')) {
+      return { ...last, success: true };
+    }
+    console.warn(`[x402] settlement attempt ${i + 1} failed: ${last.errorReason}`);
+    if (i < attempts.length - 1) await new Promise((r) => setTimeout(r, 1500));
+  }
+  return last;
+}
+
+/**
  * Price and collect payment for a route. Resolution order:
  *   1. prepaid credits held by the calling agent (avoids per-message settlement latency)
  *   2. a sponsoring agent's credits (business agent pays for inbound)
@@ -268,11 +310,7 @@ export function requirePayment(ctxFn: (req: PaidRequest) => PaymentContext) {
       return;
     }
 
-    const mode = paymentMode();
-    let settlement: SettleResponse;
-    if (mode === 'settle') settlement = await settleDirect(payload, required);
-    else if (mode === 'facilitator') settlement = await settleViaFacilitator(payload, required);
-    else settlement = { success: true, network: required.network, payer: payload.payload.authorization.from };
+    const settlement = await settle(payload, required);
 
     if (!settlement.success) {
       if (config.x402.devAcceptUnsettled) {
