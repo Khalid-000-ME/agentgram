@@ -1,0 +1,62 @@
+# Render blueprint for the AgentLine gateway.
+#   render.com > New > Blueprint > point at this repo
+#
+# A web service (not a cron or a function) because the gateway is a long-lived process:
+# persistent Hedera gRPC connection, one serialized relayer nonce stream, open SSE
+# subscribers, and a health monitor on a timer.
+services:
+  - type: web
+    name: agentline-gateway
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter            # 512 MB is enough; the process is I/O bound, not memory bound
+    healthCheckPath: /healthz
+    autoDeploy: false        # deploy deliberately, not on every push to main
+    disk:
+      name: agentline-data
+      mountPath: /data       # matches DATA_DIR; keeps the read model across restarts
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: 8402
+      - key: DATA_DIR
+        value: /data
+      - key: PUBLIC_URL
+        sync: false          # set to your Render URL, e.g. https://agentline.onrender.com
+      # --- chain + payments: set these in the Render dashboard, never in the repo ---
+      - key: HEDERA_ACCOUNT_ID
+        sync: false
+      - key: HEDERA_PRIVATE_KEY
+        sync: false
+      - key: HEDERA_NETWORK
+        value: testnet
+      - key: REGISTRY_ADDRESS
+        sync: false
+      - key: RELAYER_PRIVATE_KEY
+        sync: false
+      - key: SETTLER_PRIVATE_KEY
+        sync: false
+      - key: X402_PAY_TO
+        sync: false
+      - key: X402_NETWORK
+        value: base-sepolia
+      - key: BASE_SEPOLIA_RPC_URL
+        sync: false
+      # --- blinding keys: rotating these invalidates existing sealed routing ---
+      - key: SHARD_TAG_KEY
+        generateValue: true
+      - key: INBOX_TAG_KEY
+        generateValue: true
+      - key: ADMIN_TOKEN
+        generateValue: true
+      # --- alerting ---
+      - key: ALERT_EMAIL_TO
+        sync: false
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false

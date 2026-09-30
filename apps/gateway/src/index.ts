@@ -16,7 +16,7 @@ import { agentsRouter } from './routes/agents.ts';
 import { conversationsRouter } from './routes/conversations.ts';
 import { discoveryRouter } from './routes/discovery.ts';
 import { groupsRouter } from './routes/groups.ts';
-import { miscRouter } from './routes/misc.ts';
+import { healthProbe, miscRouter } from './routes/misc.ts';
 import { safetyRouter } from './routes/safety.ts';
 import { flushAll } from './services/notifier.ts';
 import { ledger, verifyLedger } from './services/ledger.ts';
@@ -48,6 +48,9 @@ export function createApp() {
   const publicDir = join(import.meta.dirname, '../public');
   app.get('/ui', (_req, res) => res.sendFile(join(publicDir, 'index.html')));
   app.use('/ui', express.static(publicDir, { redirect: false }));
+
+  // Platforms probe /healthz at the root; /v1/healthz is the same handler.
+  app.get('/healthz', healthProbe);
 
   app.use(discoveryRouter);
   app.use('/v1/admin', adminRouter);

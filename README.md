@@ -137,6 +137,14 @@ test/                  44 tests, no credentials required
 examples/              two-agents-demo.ts
 ```
 
+## Deploying
+
+Use a persistent container host — [`render.yaml`](render.yaml) and [`Dockerfile`](Dockerfile)
+are ready to go. The gateway holds a Hedera gRPC connection, serializes registry writes
+through one relayer nonce stream, keeps SSE subscribers open and runs a health monitor on a
+timer; those want a long-lived process. [DEPLOYMENT.md](DEPLOYMENT.md) has the measured
+latencies, why serverless needs changes first, and exactly what those changes are.
+
 ## Going live
 
 ```bash

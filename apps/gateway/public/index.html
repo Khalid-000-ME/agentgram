@@ -76,6 +76,17 @@
   .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--faint);
     border-top-color:transparent;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
   @keyframes s{to{transform:rotate(360deg)}}
+  .chatbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .chatbar input{max-width:none;flex:1 1 260px}
+  .msg{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:9px;background:var(--panel-2)}
+  .msg.b{border-left:3px solid var(--accent)}
+  .msg.a{border-left:3px solid var(--ok)}
+  .msg .head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-bottom:7px}
+  .msg .plain{font-size:15px;font-weight:600;word-break:break-word}
+  .msg .plain.control{font-weight:400;color:var(--dim);font-size:13.5px;font-family:var(--mono)}
+  .msg .cipher{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
+    font-family:var(--mono);font-size:11.5px;color:var(--faint);word-break:break-all;line-height:1.7}
+  .msg .cipher b{color:var(--dim);font-weight:600}
   .banner{border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:14px;border:1px solid}
   .banner.bad{background:rgba(242,85,90,.1);border-color:rgba(242,85,90,.35);color:var(--bad)}
   .banner.warn{background:rgba(240,184,73,.1);border-color:rgba(240,184,73,.35);color:var(--warn)}
@@ -121,6 +132,23 @@
         <button onclick="healthCheck()" id="btnHealth">Run health check</button>
       </div>
       <p class="note" id="alertResult"></p>
+    </div>
+
+    <!-- live message check -->
+    <div class="card">
+      <h2>Live message check</h2>
+      <p class="note">Type a message and send it between two real test agents. You see the
+        decrypted text the recipient actually got, next to the ciphertext the gateway and the
+        public Hedera topic actually hold. Each send is a real paid, encrypted message.</p>
+      <div class="chatbar">
+        <input id="chatText" placeholder="Type a message, e.g. Quote LHR->JFK for 2 on 14 Oct"
+               onkeydown="if(event.key==='Enter')sendChat('A')">
+        <button class="primary" id="btnSendA" onclick="sendChat('A')">Send as A →</button>
+        <button id="btnSendB" onclick="sendChat('B')">Send as B →</button>
+        <button id="btnChatReset" onclick="resetChat()">New pair</button>
+      </div>
+      <p class="note" id="chatMeta">—</p>
+      <div id="chatOut"></div>
     </div>
 
     <!-- end-to-end test -->
@@ -295,9 +323,14 @@ async function refresh() {
   render();
 }
 
+async function refreshAll() {
+  await refresh();
+  await loadChat();
+}
+
 async function boot() {
   try {
-    await refresh();
+    await refreshAll();
     $('gate').hidden = true;
     $('app').hidden = false;
   } catch (err) {
@@ -358,6 +391,78 @@ async function healthCheck() {
     say(h.ok ? 'Health check passed.' : 'Problems: ' + h.problems.join(' · '), h.ok ? 'ok' : 'bad');
   } catch (err) { say(err.message, 'bad'); }
   busy('btnHealth', false); refresh();
+}
+
+function renderChat(p) {
+  const meta = $('chatMeta');
+  if (!p.ready) {
+    meta.className = 'note';
+    meta.textContent = 'No test agents yet — send a message and two will be registered (costs ~0.51 USDC each, once).';
+    $('chatOut').innerHTML = '';
+    return;
+  }
+  meta.className = 'note';
+  meta.innerHTML = [
+    `A <span class="pill dim">${esc(p.agentA.handle ? '@' + p.agentA.handle : p.agentA.agentId)}</span>`,
+    `B <span class="pill dim">${esc(p.agentB.handle ? '@' + p.agentB.handle : p.agentB.agentId)}</span>`,
+    `conversation <span class="pill dim">${esc(p.mode || '')} ${esc(p.cid || '')}</span>`,
+    p.topicId ? `topic <span class="pill dim">${esc(p.topicId)}</span>` : '',
+    p.safetyNumbersMatch ? pill('identities verified', 'ok') : pill('SAFETY NUMBER MISMATCH', 'bad'),
+    `spent <span class="pill dim">${esc(p.spentUsdc)} USDC</span>`,
+    p.links && p.links.hashscan ? link(p.links.hashscan, 'view topic on hashscan') : '',
+    p.links && p.links.mirrorNode ? link(p.links.mirrorNode, 'raw ciphertext') : '',
+  ].filter(Boolean).join(' · ');
+
+  const t = p.transcript || [];
+  if (!t.length) { $('chatOut').innerHTML = '<p class="empty">No messages yet.</p>'; return; }
+
+  $('chatOut').innerHTML = t.map((m) => {
+    const isControl = m.type !== 'text' && m.type !== 'json';
+    const plain = m.decrypted == null
+      ? '<span style="color:var(--bad)">could not be decrypted</span>'
+      : esc(typeof m.decrypted.text === 'string' ? m.decrypted.text : JSON.stringify(m.decrypted));
+    return `<div class="msg ${m.from === 'A' ? 'a' : 'b'}">
+      <div class="head">
+        <b style="color:var(--text)">${m.from} → ${m.from === 'A' ? 'B' : 'A'}</b>
+        ${pill(m.type, isControl ? 'dim' : 'ok')}
+        <span>HCS seq ${esc(m.seq)}</span>
+        <span>consensus ${esc(m.consensusTimestamp)}</span>
+        ${m.decryptedBy ? pill('decrypted by ' + m.decryptedBy, m.verified || isControl ? 'ok' : 'warn') : pill('not decrypted', 'bad')}
+        ${m.payment ? `<span>paid ${esc(m.payment.amount)} via ${esc(m.payment.method)}</span>` : ''}
+      </div>
+      <div class="plain ${isControl ? 'control' : ''}">${plain}</div>
+      ${m.ciphertextBytes ? `<div class="cipher">
+        <b>on-chain:</b> ${esc(m.ciphertextPreview)}… (${esc(m.ciphertextBytes)} bytes)<br>
+        <b>reference:</b> ${esc(m.conversationReference)} &nbsp; <b>sender:</b> ${esc(m.senderDevice)}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function loadChat() {
+  try { renderChat(await api('/chat')); } catch { /* panel stays as-is */ }
+}
+
+async function sendChat(from) {
+  const input = $('chatText');
+  const text = input.value.trim();
+  if (!text) return;
+  const btn = from === 'A' ? 'btnSendA' : 'btnSendB';
+  busy(btn, true, 'encrypting + paying…');
+  try {
+    const p = await api('/chat', { method: 'POST', body: JSON.stringify({ text, from }) });
+    input.value = '';
+    renderChat(p);
+  } catch (err) {
+    $('chatOut').insertAdjacentHTML('afterbegin', `<div class="banner bad">${esc(err.message)}</div>`);
+  }
+  busy(btn, false); refresh();
+}
+
+async function resetChat() {
+  busy('btnChatReset', true, 'resetting…');
+  try { await api('/chat/reset', { method: 'POST' }); await loadChat(); } catch (err) { say(err.message, 'bad'); }
+  busy('btnChatReset', false);
 }
 
 async function runE2E() {

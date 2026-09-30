@@ -163,6 +163,27 @@ miscRouter.post('/billing/sponsor', requireSignature(), handler<AuthedRequest>(a
   });
 }));
 
+/* -------------------------------------------------------------- platform probes */
+
+/**
+ * Liveness/readiness probe for the hosting platform (Render, Fly, Kubernetes).
+ *
+ * Unauthenticated and cheap by design: it reports whether this instance can serve, not
+ * operational detail. 503 while the consensus transport is unusable, so a load balancer
+ * stops sending traffic to an instance that cannot actually deliver messages.
+ */
+export const healthProbe = handler(async (_req, res) => {
+  const degraded = ledgerDegraded();
+  res.status(degraded ? 503 : 200).json({
+    status: degraded ? 'degraded' : 'ok',
+    consensus: ledger().kind,
+    uptimeSeconds: Math.floor(process.uptime()),
+    reason: degraded ?? undefined,
+  });
+});
+
+miscRouter.get('/healthz', healthProbe);
+
 /* -------------------------------------------------------------- status */
 
 miscRouter.get('/status', handler(async (_req, res) => {

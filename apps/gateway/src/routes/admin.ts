@@ -19,6 +19,7 @@ import {
   transportDescription, transportKind,
 } from '../services/alerts.ts';
 import { lastHealth, runHealthCheck } from '../services/health.ts';
+import { reset as resetPlayground, sendMessage, state as playgroundState } from '../services/playground.ts';
 import { ledger, ledgerDegraded } from '../services/ledger.ts';
 import { registry } from '../services/registry.ts';
 
@@ -143,6 +144,42 @@ adminRouter.post('/alerts/simulate', handler(async (req, res) => {
     meta: { triggeredAt: new Date().toISOString() },
   });
   res.json(alert);
+}));
+
+/* ---------------------------------------------------------------- message playground */
+
+adminRouter.get('/chat', handler(async (_req, res) => {
+  res.json(await playgroundState());
+}));
+
+/**
+ * Send a message between two in-memory test agents and return the transcript, including
+ * what the recipient decrypted and what the chain actually stored. This is the operator's
+ * proof that message transfer works, not a simulation of it.
+ */
+adminRouter.post('/chat', handler(async (req, res) => {
+  const body = (req.body ?? {}) as { text?: string; from?: 'A' | 'B' };
+  const text = String(body.text ?? '').trim();
+  if (!text) throw new AgentLineError('validation_failed', 'text is required');
+  if (text.length > 800) throw new AgentLineError('validation_failed', 'keep console messages under 800 characters');
+  const from = body.from === 'B' ? 'B' : 'A';
+  try {
+    await sendMessage(text, from);
+  } catch (err) {
+    raiseAlert({
+      severity: 'critical',
+      kind: 'playground.send_failed',
+      title: 'Console message send failed',
+      detail: `A message sent from the operator console did not complete: ${(err as Error).message}`,
+    });
+    throw err;
+  }
+  res.json(await playgroundState());
+}));
+
+adminRouter.post('/chat/reset', handler(async (_req, res) => {
+  resetPlayground();
+  res.json({ ok: true, note: 'Test agents discarded. The next message creates a fresh pair and conversation.' });
 }));
 
 /**
