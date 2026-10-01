@@ -341,6 +341,12 @@ export function requirePayment(ctxFn: (req: PaidRequest) => PaymentContext) {
       req.payment = { method: 'disabled', atomic: 0n, routeKey: ctx.routeKey };
       next(); return;
     }
+    if (paymentMode() === 'algorand') {
+      // The Algorand rail prices the public surface up front; charging again here would
+      // bill the caller twice for one request.
+      req.payment = { method: 'disabled', atomic: 0n, routeKey: ctx.routeKey };
+      next(); return;
+    }
     if (atomic === 0n) {
       req.payment = { method: 'x402', atomic: 0n, routeKey: ctx.routeKey };
       next(); return;

@@ -30,6 +30,23 @@ export const config = {
   dataDir: process.env.DATA_DIR ?? '.data',
   env: process.env.NODE_ENV ?? 'development',
 
+  /* ---- Algorand x402 (the Global x402 Challenge rail) ----
+   *
+   * The challenge requires the endpoint to price and settle on Algorand Mainnet through
+   * the GoPlausible facilitator, advertise itself through the Bazaar discovery extension,
+   * and carry the tag `x402-global-challenge`. Switching X402_CHAIN to "algorand" replaces
+   * the EVM rail wholesale rather than running both: two payment rails on one endpoint
+   * would make the leaderboard's view of real usage ambiguous.
+   */
+  algorand: {
+    enabled: (process.env.X402_CHAIN ?? 'evm') === 'algorand',
+    network: (process.env.ALGORAND_NETWORK ?? 'mainnet') as 'mainnet' | 'testnet',
+    /** the address that receives USDC; must be opted into the USDC ASA */
+    payTo: process.env.AVM_ADDRESS ?? '',
+    facilitatorUrl: process.env.FACILITATOR_URL ?? 'https://facilitator.goplausible.xyz',
+    challengeTag: process.env.X402_CHALLENGE_TAG ?? 'x402-global-challenge',
+  },
+
   /* ---- x402 payments (Base Sepolia by default) ---- */
   x402: {
     enabled: bool(process.env.X402_ENABLED, true),
@@ -105,8 +122,11 @@ export function registryMode(): 'onchain' | 'local' {
  * key then serves as the fallback path (see settle() in middleware/x402.ts). Set
  * X402_SETTLE_MODE=direct to always submit transfers ourselves.
  */
-export function paymentMode(): 'settle' | 'facilitator' | 'verify-only' | 'disabled' {
+export function paymentMode(): 'algorand' | 'settle' | 'facilitator' | 'verify-only' | 'disabled' {
   if (!config.x402.enabled) return 'disabled';
+  // The Algorand rail owns pricing end to end via @x402/express, so the EVM modes below
+  // do not apply when it is on.
+  if (config.algorand.enabled) return 'algorand';
   if (config.x402.devAcceptUnsettled) return 'verify-only';
   if (config.x402.settleMode === 'direct') {
     if (!config.x402.settlerPrivateKey) throw new Error('X402_SETTLE_MODE=direct requires SETTLER_PRIVATE_KEY');

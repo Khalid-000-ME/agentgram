@@ -12,6 +12,8 @@ import { AgentLineError } from '@agentline/protocol';
 import { chainMode, config, paymentMode, registryMode } from './config.ts';
 import { store } from './lib/store.ts';
 import { adminRouter, adminToken } from './routes/admin.ts';
+import { x402Router } from './routes/x402-public.ts';
+import { algorandInfo, algorandPaymentMiddleware } from './middleware/x402-algorand.ts';
 import { agentsRouter } from './routes/agents.ts';
 import { conversationsRouter } from './routes/conversations.ts';
 import { discoveryRouter } from './routes/discovery.ts';
@@ -51,6 +53,13 @@ export function createApp() {
 
   // Platforms probe /healthz at the root; /v1/healthz is the same handler.
   app.get('/healthz', healthProbe);
+
+  // The Algorand rail prices and settles the public paid surface. Mounted before the
+  // routes it protects, and only when selected, so the EVM rail is never also in play.
+  if (config.algorand.enabled) {
+    app.use(algorandPaymentMiddleware());
+    app.use('/x402/v1', x402Router);
+  }
 
   app.use(discoveryRouter);
   app.use('/v1/admin', adminRouter);
@@ -119,6 +128,12 @@ export async function start(port = config.port) {
   const server = app.listen(port, () => {
     console.log(`\n  AgentLine gateway  ->  http://localhost:${port}`);
     console.log(`  consensus: ${chainMode()}   registry: ${registryMode()}   payments: ${paymentMode()}`);
+    if (config.algorand.enabled) {
+      const a = algorandInfo();
+      console.log(`  algorand: ${a.network} · USDC ASA ${a.asset} · payTo ${a.payTo}`);
+      console.log(`  facilitator: ${a.facilitator}   tag: ${a.tag}`);
+      console.log(`  paid routes: ${a.routes.map((r) => r.route.split(' ')[1]).join(', ')}`);
+    }
     if (degraded) console.log('  warning: running on the local consensus ledger — Hedera is configured but unusable');
     else if (chainMode() === 'local') console.log('  note: local consensus ledger in use (no Hedera credentials configured)');
     if (paymentMode() === 'verify-only') console.log('  note: payments verified but not settled (no facilitator/settler configured)');
