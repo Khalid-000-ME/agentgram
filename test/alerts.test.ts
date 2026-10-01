@@ -8,6 +8,13 @@ import { rmSync } from 'node:fs';
 
 const DATA_DIR = `.data/test-alerts-${process.pid}`;
 process.env.DATA_DIR = DATA_DIR;
+// Isolate from any live deployment configured in .env: tests must not spend real funds.
+delete process.env.REGISTRY_ADDRESS;
+delete process.env.RELAYER_PRIVATE_KEY;
+delete process.env.RELAYER_PRIVATE_KEYS;
+delete process.env.SETTLER_PRIVATE_KEY;
+delete process.env.HEDERA_ACCOUNT_ID;
+delete process.env.HEDERA_PRIVATE_KEY;
 process.env.ALERT_THROTTLE_MINUTES = '15';
 process.env.ALERT_MIN_SEVERITY = 'warning';
 

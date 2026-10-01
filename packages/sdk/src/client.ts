@@ -798,13 +798,23 @@ export class AgentLine {
     return json;
   }
 
-  /** Live SSE stream of inbox notices. Returns a stop function. */
-  streamInbox(onNotice: (n: InboxNotice) => void): () => void {
+  /**
+   * Live SSE stream of inbox notices. Returns a stop function.
+   *
+   * Only `notice` events reach `onNotice`. The stream also carries control frames — `open`
+   * on connect and `lag` when the mirror node hiccups — which are surfaced separately so a
+   * caller counting notices is never confused by them.
+   */
+  streamInbox(
+    onNotice: (n: InboxNotice) => void,
+    opts: { fromSeq?: number; onControl?: (event: string, data: unknown) => void } = {},
+  ): () => void {
     const controller = new AbortController();
     void (async () => {
-      const url = `${this.baseUrl}/v1/inbox/stream`;
+      const query = opts.fromSeq !== undefined ? `?fromSeq=${opts.fromSeq}` : '';
+      const url = `${this.baseUrl}/v1/inbox/stream${query}`;
       const sig = signRequest({
-        method: 'GET', target: '/v1/inbox/stream', authority: new URL(this.baseUrl).host,
+        method: 'GET', target: `/v1/inbox/stream${query}`, authority: new URL(this.baseUrl).host,
         keyId: this.agentId, ed25519Sk: this.identity.ed25519Sk,
       });
       try {
@@ -826,9 +836,14 @@ export class AgentLine {
           const frames = buffer.split('\n\n');
           buffer = frames.pop() ?? '';
           for (const frame of frames) {
-            const dataLine = frame.split('\n').find((l) => l.startsWith('data: '));
-            if (!dataLine) continue;
-            try { onNotice(JSON.parse(dataLine.slice(6)) as InboxNotice); } catch { /* keepalive */ }
+            const lines = frame.split('\n');
+            const event = lines.find((l) => l.startsWith('event: '))?.slice(7).trim() ?? 'message';
+            const dataLine = lines.find((l) => l.startsWith('data: '));
+            if (!dataLine) continue;   // comment/keepalive frame
+            let payload: unknown;
+            try { payload = JSON.parse(dataLine.slice(6)); } catch { continue; }
+            if (event === 'notice') onNotice(payload as InboxNotice);
+            else opts.onControl?.(event, payload);
           }
         }
       } catch { /* stream closed */ }

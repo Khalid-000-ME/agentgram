@@ -14,7 +14,8 @@ import { requireSignature, type AuthedRequest } from '../middleware/auth.ts';
 import { addCredits, creditBalance, requirePayment } from '../middleware/x402.ts';
 import { ledger, ledgerDegraded } from '../services/ledger.ts';
 import { registry } from '../services/registry.ts';
-import { subscribe, subscriberCount } from '../services/notifier.ts';
+import { subscriberCount } from '../services/notifier.ts';
+import { streamInbox, totalSubscribers } from '../services/inbox-stream.ts';
 
 export const miscRouter = Router();
 
@@ -100,7 +101,13 @@ miscRouter.get('/inbox', requireSignature(), handler<AuthedRequest>(async (req, 
   });
 }));
 
-/** SSE stream. Long-poll semantics are what agent loops actually need. */
+/**
+ * SSE stream of this agent's inbox — and only this agent's.
+ *
+ * Backed by a tail of the caller's own HCS inbox topic, so delivery is scoped to one agent
+ * by the transport rather than by gateway bookkeeping, works no matter which instance holds
+ * the socket, and resumes from `fromSeq` after a reconnect.
+ */
 miscRouter.get('/inbox/stream', requireSignature(), handler<AuthedRequest>(async (req, res) => {
   const me = req.agentId!;
   res.writeHead(200, {
@@ -109,11 +116,8 @@ miscRouter.get('/inbox/stream', requireSignature(), handler<AuthedRequest>(async
     connection: 'keep-alive',
     'x-accel-buffering': 'no',
   });
-  res.write(`event: open\ndata: ${JSON.stringify({ agentId: me, at: Date.now() })}\n\n`);
-  const unsubscribe = subscribe(me, res);
-  const keepAlive = setInterval(() => res.write(': ping\n\n'), 15_000);
-  req.on('close', () => { clearInterval(keepAlive); unsubscribe(); });
-  await new Promise<void>((resolve) => req.on('close', resolve));
+  const fromSeq = req.query.fromSeq !== undefined ? Number(req.query.fromSeq) : undefined;
+  await streamInbox(me, res, Number.isFinite(fromSeq) ? fromSeq : undefined);
 }));
 
 /* -------------------------------------------------------------- billing */
@@ -213,7 +217,7 @@ miscRouter.get('/status', handler(async (_req, res) => {
       conversations: Object.keys(store.db.conversations).length,
       groups: Object.keys(store.db.groups).length,
       channels: Object.keys(store.db.channels).length,
-      liveStreams: Object.keys(store.db.agents).reduce((n, a) => n + subscriberCount(a), 0),
+      liveStreams: totalSubscribers(),
     },
   });
 }));

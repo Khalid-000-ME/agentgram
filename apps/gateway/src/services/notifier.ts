@@ -6,31 +6,17 @@
  * SSE/WS streams and HMAC-signed webhooks. Low-priority notices are batched to save fees.
  */
 import { createHmac } from 'node:crypto';
-import type { Response } from 'express';
 import { encode } from 'cbor-x';
 import { NOTICE_BATCH_MS, type InboxNotice } from '@agentline/protocol';
 import { store } from '../lib/store.ts';
 import { ledger } from './ledger.ts';
+import { pushLocal, totalSubscribers } from './inbox-stream.ts';
 
-type Subscriber = { res: Response; agentId: string };
-
-const subscribers = new Map<string, Set<Subscriber>>();
 const pending = new Map<string, InboxNotice[]>();
 const timers = new Map<string, NodeJS.Timeout>();
 
-export function subscribe(agentId: string, res: Response): () => void {
-  const set = subscribers.get(agentId) ?? new Set();
-  const sub: Subscriber = { res, agentId };
-  set.add(sub);
-  subscribers.set(agentId, set);
-  return () => {
-    set.delete(sub);
-    if (!set.size) subscribers.delete(agentId);
-  };
-}
-
-export function subscriberCount(agentId: string): number {
-  return subscribers.get(agentId)?.size ?? 0;
+export function subscriberCount(_agentId: string): number {
+  return totalSubscribers();
 }
 
 /**
@@ -41,7 +27,6 @@ export function subscriberCount(agentId: string): number {
  * does not pay one HCS fee per receipt.
  */
 export async function notify(agentId: string, notice: InboxNotice): Promise<void> {
-  pushLive(agentId, notice);
   if (notice.prio === 'low') {
     const queue = pending.get(agentId) ?? [];
     queue.push(notice);
@@ -71,19 +56,14 @@ async function publish(agentId: string, notices: InboxNotice[]): Promise<void> {
     for (const n of notices) list.push({ seq: result.seq, notice: n, at: Date.now() });
     if (list.length > 2000) list.splice(0, list.length - 2000);
     store.save();
+    // Fast path: if this instance also holds the recipient's stream, deliver now rather
+    // than waiting for the mirror node to index the topic. Keyed by the topic sequence
+    // number so the chain tail will not deliver it twice.
+    for (const n of notices) pushLocal(agentId, n, result.seq);
   } catch (err) {
     console.error(`[notifier] inbox submit failed for ${agentId}:`, (err as Error).message);
   }
   void deliverWebhook(agentId, notices);
-}
-
-function pushLive(agentId: string, notice: InboxNotice): void {
-  const set = subscribers.get(agentId);
-  if (!set?.size) return;
-  const frame = `event: notice\ndata: ${JSON.stringify(notice)}\n\n`;
-  for (const sub of set) {
-    try { sub.res.write(frame); } catch { set.delete(sub); }
-  }
 }
 
 async function deliverWebhook(agentId: string, notices: InboxNotice[]): Promise<void> {

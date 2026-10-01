@@ -14,6 +14,13 @@ async function getJson<T = any>(res: Promise<Response> | Response): Promise<T> {
 
 const DATA_DIR = `.data/test-${process.pid}`;
 process.env.DATA_DIR = DATA_DIR;
+// Isolate from any live deployment configured in .env: tests must not spend real funds.
+delete process.env.REGISTRY_ADDRESS;
+delete process.env.RELAYER_PRIVATE_KEY;
+delete process.env.RELAYER_PRIVATE_KEYS;
+delete process.env.SETTLER_PRIVATE_KEY;
+delete process.env.HEDERA_ACCOUNT_ID;
+delete process.env.HEDERA_PRIVATE_KEY;
 process.env.X402_ENABLED = 'true';
 process.env.X402_PAY_TO = '0x1111111111111111111111111111111111111111';
 process.env.X402_DEV_ACCEPT_UNSETTLED = 'true';

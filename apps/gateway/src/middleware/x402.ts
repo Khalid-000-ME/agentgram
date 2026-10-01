@@ -23,6 +23,40 @@ import { store } from '../lib/store.ts';
 import { raiseAlert } from '../services/alerts.ts';
 import { resetNonce, withNonce } from '../services/nonce-manager.ts';
 
+/**
+ * Pull the useful line out of a viem contract error.
+ *
+ * viem puts the revert reason several lines into the message, so the usual
+ * `.split('\n')[0]` throws away the only part that tells a caller what to do — "insufficient
+ * balance" and "nonce collision" are very different problems and must not both surface as
+ * "transaction reverted".
+ */
+function revertMessage(err: unknown): string {
+  const full = err instanceof Error ? err.message : String(err);
+  const reason = /reverted with the following reason:\s*\n?\s*(.+)/i.exec(full)?.[1]?.trim();
+  if (reason) return reason;
+  const short = /(?:Details|Error):\s*(.+)/i.exec(full)?.[1]?.trim();
+  return (short ?? full.split('\n')[0]).slice(0, 200);
+}
+
+/** Map a settlement failure to something the caller can act on. */
+function settlementHint(reason: string): string | undefined {
+  const r = reason.toLowerCase();
+  if (/insufficient balance|transfer amount exceeds balance|exceeds balance/.test(r)) {
+    return 'The payer wallet does not hold enough USDC for this request. Top it up and retry.';
+  }
+  if (/authorization is used|invalid authorization state/.test(r)) {
+    return 'This payment authorization was already spent. Sign a fresh one and retry.';
+  }
+  if (/authorization is not yet valid|invalid authorization/.test(r)) {
+    return 'The authorization validity window does not cover now — check the payer clock.';
+  }
+  if (/insufficient funds/.test(r)) {
+    return 'The gateway settler wallet is out of gas; this is an operator problem, not yours.';
+  }
+  return undefined;
+}
+
 const EIP3009_TYPES = {
   TransferWithAuthorization: [
     { name: 'from', type: 'address' },
@@ -91,12 +125,15 @@ export function requirementsFor(routeKey: string, atomic: bigint, resource: stri
 function paymentRequired(res: Response, routeKey: string, atomic: bigint, resource: string, error?: string): void {
   const requirements = requirementsFor(routeKey, atomic, resource);
   const body: PaymentRequiredBody = { x402Version: X402_VERSION, error, accepts: [requirements] };
+  const diagnosis = error ? settlementHint(error) : undefined;
   res.setHeader(HEADERS.paymentRequired, encodeHeaderJson(body));
   res.setHeader('Cache-Control', 'no-store');
   res.status(402).json({
     ...body,
     // Human/LLM-readable hint so an agent reading the error can act without extra docs.
-    hint: `Pay ${fromAtomic(atomic)} ${config.x402.assetName} on ${config.x402.network} to ${config.x402.payTo}, then retry with the X-PAYMENT header (base64 JSON x402 payment payload).`,
+    hint: diagnosis
+      ?? `Pay ${fromAtomic(atomic)} ${config.x402.assetName} on ${config.x402.network} to ${config.x402.payTo}, then retry with the X-PAYMENT header (base64 JSON x402 payment payload).`,
+    ...(diagnosis ? { diagnosis } : {}),
   });
 }
 
@@ -203,10 +240,10 @@ async function settleDirect(payload: PaymentPayload, required: PaymentRequiremen
     const receipt = await client.waitForTransactionReceipt({ hash, timeout: 90_000 });
     return {
       success: receipt.status === 'success', transaction: hash, network: required.network, payer: a.from,
-      errorReason: receipt.status === 'success' ? undefined : 'transaction reverted',
+      errorReason: receipt.status === 'success' ? undefined : 'transaction reverted on-chain',
     };
   } catch (err) {
-    const message = (err as Error).message.split('\n')[0];
+    const message = revertMessage(err);
     if (/nonce/i.test(message)) resetNonce(account.address);
     // A transfer whose authorization was consumed while we were submitting still means the
     // money moved.
@@ -269,13 +306,18 @@ async function settle(payload: PaymentPayload, required: PaymentRequirements): P
 
   // Every path failed: the service is now refusing paid requests, i.e. it is down for
   // revenue purposes even though it is answering HTTP.
-  raiseAlert({
-    severity: 'critical',
-    kind: 'x402.settlement_failed',
-    title: 'Payment settlement is failing — paid routes are unusable',
-    detail: `All ${attempts.length} settlement attempts failed. Last error: ${last.errorReason ?? 'unknown'}`,
-    meta: { mode, network: required.network, facilitator: config.x402.facilitatorUrl, asset: required.asset },
-  });
+  // A payer with an empty wallet is their problem, not an outage. Alerting on it would
+  // bury the operator in noise the moment a single agent runs dry.
+  const payerFault = /insufficient balance|exceeds balance|authorization is used|not yet valid/i.test(last.errorReason ?? '');
+  if (!payerFault) {
+    raiseAlert({
+      severity: 'critical',
+      kind: 'x402.settlement_failed',
+      title: 'Payment settlement is failing — paid routes are unusable',
+      detail: `All ${attempts.length} settlement attempts failed. Last error: ${last.errorReason ?? 'unknown'}`,
+      meta: { mode, network: required.network, facilitator: config.x402.facilitatorUrl, asset: required.asset },
+    });
+  }
   return last;
 }
 
