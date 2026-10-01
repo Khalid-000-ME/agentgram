@@ -43,12 +43,33 @@ after(() => {
 
 const connect = () => AgentLine.connect({ baseUrl, keyStore: new MemoryKeyStore() });
 
-/** Collect notices from an agent's SSE stream for a fixed window. */
-function listen(agent: Awaited<ReturnType<typeof connect>>, ms: number): Promise<unknown[]> {
+/**
+ * Collect notices from an agent's SSE stream.
+ *
+ * Resolves as soon as `expect` notices have arrived, otherwise at the deadline. Waiting on
+ * the condition rather than a fixed sleep keeps these tests from going flaky when the whole
+ * suite runs concurrently and everything is a little slower.
+ */
+function listen(
+  agent: Awaited<ReturnType<typeof connect>>,
+  ms: number,
+  expect = 0,
+): Promise<unknown[]> {
   return new Promise((resolve) => {
     const received: unknown[] = [];
-    const stop = agent.streamInbox((n) => received.push(n));
-    setTimeout(() => { stop(); resolve(received); }, ms);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      stop();
+      resolve(received);
+    };
+    const stop = agent.streamInbox((n) => {
+      received.push(n);
+      if (expect > 0 && received.length >= expect) finish();
+    });
+    const timer = setTimeout(finish, ms);
   });
 }
 
@@ -59,8 +80,8 @@ test('a notice reaches only the addressed agent', async () => {
 
   // Everyone listens; only Bob is messaged.
   const [bobHeard, carolHeard] = await Promise.all([
-    listen(bob, 4000),
-    listen(carol, 4000),
+    listen(bob, 20_000, 1),
+    listen(carol, 20_000),          // expects nothing, so it must run the full window
     (async () => {
       await new Promise((r) => setTimeout(r, 600));
       await alice.send(bob.agentId, 'for bob only');
@@ -76,7 +97,7 @@ test('the sender does not receive its own notice', async () => {
   const bob = await connect();
 
   const [aliceHeard] = await Promise.all([
-    listen(alice, 3500),
+    listen(alice, 6000),            // expects nothing; the window is the assertion
     (async () => {
       await new Promise((r) => setTimeout(r, 500));
       await alice.send(bob.agentId, 'outbound');
@@ -90,7 +111,7 @@ test('a notice carries no plaintext and no sender in sealed mode', async () => {
   const bob = await connect();
 
   const [heard] = await Promise.all([
-    listen(bob, 4000),
+    listen(bob, 20_000, 1),
     (async () => {
       await new Promise((r) => setTimeout(r, 600));
       await alice.send(bob.agentId, 'secret cargo manifest');
@@ -115,7 +136,7 @@ test('a reconnecting stream resumes without replaying everything', async () => {
 
   // A new message still arrives.
   const [heard] = await Promise.all([
-    listen(bob, 3500),
+    listen(bob, 20_000, 1),
     (async () => { await new Promise((r) => setTimeout(r, 500)); await alice.send(bob.agentId, 'second'); })(),
   ]);
   assert.ok(heard.length >= 1, 'a new notice must arrive on the reconnected stream');
@@ -126,8 +147,8 @@ test('two streams for the same agent both receive its notices', async () => {
   const bob = await connect();
 
   const [first, second] = await Promise.all([
-    listen(bob, 4000),
-    listen(bob, 4000),
+    listen(bob, 25_000, 1),
+    listen(bob, 25_000, 1),
     (async () => { await new Promise((r) => setTimeout(r, 700)); await alice.send(bob.agentId, 'multi-device'); })(),
   ]);
   assert.ok(first.length >= 1 && second.length >= 1,
