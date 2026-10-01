@@ -1,55 +1,76 @@
-# Render blueprint for the AgentLine gateway.
-#   render.com > New > Blueprint > point at this repo
+# Render blueprint for the AgentGram gateway.
+#   render.com → New → Blueprint → point at this repo
 #
-# A web service (not a cron or a function) because the gateway is a long-lived process:
-# persistent Hedera gRPC connection, one serialized relayer nonce stream, open SSE
-# subscribers, and a health monitor on a timer.
+# A web service, not a cron or a function: the gateway holds a Hedera gRPC connection,
+# serializes relayer nonces, keeps inbox streams open and runs a health monitor on a timer.
+#
+# Plan note: `free` sleeps after 15 minutes idle and carries no persistent disk. That is
+# survivable here — the local store is a cache the indexer rebuilds from chain — but a cold
+# start adds ~30-60s to the first request after a sleep, which an impatient caller may time
+# out on. Switch to `starter` and uncomment the disk block to keep it warm and persistent.
 services:
   - type: web
-    name: agentline-gateway
+    name: agentgram-gateway
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter            # 512 MB is enough; the process is I/O bound, not memory bound
+    plan: free
     healthCheckPath: /healthz
-    autoDeploy: false        # deploy deliberately, not on every push to main
-    disk:
-      name: agentline-data
-      mountPath: /data       # matches DATA_DIR; keeps the read model across restarts
-      sizeGB: 1
+    autoDeploy: false
+    # disk:                      # requires plan: starter or above
+    #   name: agentgram-data
+    #   mountPath: /data
+    #   sizeGB: 1
     envVars:
       - key: PORT
         value: 8402
       - key: DATA_DIR
         value: /data
       - key: PUBLIC_URL
-        sync: false          # set to your Render URL, e.g. https://agentline.onrender.com
-      # --- chain + payments: set these in the Render dashboard, never in the repo ---
+        sync: false              # set to the Render URL once it exists, e.g. https://agentgram-gateway.onrender.com
+
+      # ── Algorand x402 rail (the Global x402 Challenge) ──────────────────────
+      # AVM_ADDRESS is a PUBLIC Algorand address, not a key. The server never signs
+      # an Algorand transaction; the facilitator verifies and settles. The address
+      # must be opted into USDC ASA 31566704 or payments cannot land, and it must
+      # stay the same for the whole competition.
+      - key: X402_CHAIN
+        value: algorand
+      - key: ALGORAND_NETWORK
+        value: mainnet
+      - key: AVM_ADDRESS
+        sync: false
+      - key: FACILITATOR_URL
+        value: https://facilitator.goplausible.xyz
+      - key: X402_CHALLENGE_TAG
+        value: x402-global-challenge
+
+      # ── Hedera: the message bus ─────────────────────────────────────────────
+      - key: HEDERA_NETWORK
+        value: testnet
       - key: HEDERA_ACCOUNT_ID
         sync: false
       - key: HEDERA_PRIVATE_KEY
         sync: false
-      - key: HEDERA_NETWORK
-        value: testnet
+
+      # ── Base: the identity registry ─────────────────────────────────────────
       - key: REGISTRY_ADDRESS
         sync: false
+      - key: REGISTRY_CHAIN_ID
+        value: 84532
       - key: RELAYER_PRIVATE_KEY
         sync: false
-      - key: SETTLER_PRIVATE_KEY
-        sync: false
-      - key: X402_PAY_TO
-        sync: false
-      - key: X402_NETWORK
-        value: base-sepolia
       - key: BASE_SEPOLIA_RPC_URL
-        sync: false
-      # --- blinding keys: rotating these invalidates existing sealed routing ---
+        value: https://sepolia.base.org
+
+      # ── Blinding keys: rotating these orphans existing sealed routing ───────
       - key: SHARD_TAG_KEY
         generateValue: true
       - key: INBOX_TAG_KEY
         generateValue: true
       - key: ADMIN_TOKEN
         generateValue: true
-      # --- alerting ---
+
+      # ── Alerting ────────────────────────────────────────────────────────────
       - key: ALERT_EMAIL_TO
         sync: false
       - key: SMTP_HOST
