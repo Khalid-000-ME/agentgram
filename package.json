@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AgentLine — x402-paid, end-to-end-encrypted, on-chain messaging hub for autonomous agents",
+  "description": "AgentLine \u2014 x402-paid, end-to-end-encrypted, on-chain messaging hub for autonomous agents",
   "engines": {
     "node": ">=22"
   },
@@ -37,13 +37,13 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "nodemailer": "^10.0.13",
+    "tsx": "^4.19.3",
     "viem": "^2.23.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.13.5",
-    "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   }
 }

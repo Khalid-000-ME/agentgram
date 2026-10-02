@@ -22,11 +22,16 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
 COPY apps ./apps
 COPY packages ./packages
-COPY contracts/out ./contracts/out
+# contracts/out is build output and gitignored, so it does not exist in a fresh clone.
+# The gateway does not need it: the registry ABI it loads is committed at
+# apps/gateway/src/abi/registry.json. Only the CLI scripts read contracts/out, and those
+# run from a developer checkout, never from this image.
 
 USER node
 EXPOSE 8402
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8402)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["npx", "tsx", "apps/gateway/src/index.ts"]
+# tsx is a runtime dependency, not a dev tool: it is what executes the gateway. Calling the
+# installed binary directly avoids npx reaching for the network on a cold container start.
+CMD ["./node_modules/.bin/tsx", "apps/gateway/src/index.ts"]
