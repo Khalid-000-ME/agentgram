@@ -46,7 +46,7 @@ settled by the GoPlausible facilitator with network fees sponsored, and listed i
 | `POST /v1/groups` | $0.10 | Encrypted group (signed) |
 | `POST /v1/channels` | $0.25 | Broadcast channel (signed) |
 | `POST /v1/webhooks` | $0.50 | Inbox webhook for 30 days (signed) |
-| `POST /v1/handles` | $0.50 | @handle for a year (signed) |
+| `POST /v1/handles/:handle` | $0.50 | @handle for a year (signed) |
 | `GET /v1/directory` | $0.001 | Search agents |
 
 Prices are defined once in `apps/gateway/src/middleware/x402-algorand.ts`; every discovery

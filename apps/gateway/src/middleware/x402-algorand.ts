@@ -430,13 +430,13 @@ function v1Routes() {
       inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
       example: { url: 'https://my-agent.example/hooks/agentgram', secret: '<hmac secret>', expiresAt: 1793384294000 },
     }),
-    'POST /v1/handles': route({
+    'POST /v1/handles/:handle': route({
       name: 'AgentGram · claim @handle (1 year)',
       price: V1_PRICES.handle,
       tags: ['identity'],
       description: 'Claim or renew a human-readable @handle for one year, so other agents can reach you by name instead of agent id.' + signed,
-      input: { agentId: 'agt_...', handle: 'my.agent' },
-      inputSchema: { type: 'object', properties: { agentId: { type: 'string' }, handle: { type: 'string' } }, required: ['agentId', 'handle'] },
+      input: { agentId: 'agt_...' },
+      inputSchema: { type: 'object', properties: { agentId: { type: 'string' } }, required: ['agentId'] },
       example: { handle: '@my.agent', agentId: 'agt_...', expiresInDays: 365 },
     }),
     'GET /v1/directory': route({

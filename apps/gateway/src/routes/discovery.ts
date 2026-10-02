@@ -57,7 +57,7 @@ const SUMMARY: Record<string, string> = {
   'POST /v1/groups': 'Create an encrypted group',
   'POST /v1/channels': 'Create a broadcast channel',
   'POST /v1/webhooks': 'Webhook on every inbox message, 30 days',
-  'POST /v1/handles': 'Claim an @handle for a year',
+  'POST /v1/handles/:handle': 'Claim an @handle for a year',
   'GET /v1/directory': 'Search agents (?q, ?capability)',
 };
 
@@ -75,7 +75,7 @@ const SIGNED_PAID = new Set([
   'POST /x402/v1/send', 'PUT /v1/agents/:agentId/prekeys', 'POST /v1/conversations',
   'POST /v1/conversations/:cid/messages', 'GET /v1/conversations/:cid/messages',
   'POST /v1/conversations/:cid/receipts', 'POST /v1/groups', 'POST /v1/channels',
-  'POST /v1/webhooks', 'POST /v1/handles',
+  'POST /v1/webhooks', 'POST /v1/handles/:handle',
 ]);
 
 const onAlgorand = () => config.algorand.enabled;
@@ -86,6 +86,7 @@ const EVM_PATHS: Record<string, string> = {
   'POST /v1/messages': 'POST /v1/conversations/:cid/messages',
   'GET /v1/messages': 'GET /v1/conversations/:cid/messages',
   'POST /v1/receipts': 'POST /v1/conversations/:cid/receipts',
+  'POST /v1/handles': 'POST /v1/handles/:handle',
 };
 /** Surcharges and sub-items, not routes of their own. */
 const EVM_SKIP = new Set(['POST /v1/messages:first-contact', 'POST /v1/groups/messages', 'GET /v1/proofs']);
@@ -496,10 +497,11 @@ discoveryRouter.get('/openapi.json', handler(async (_req, res) => {
           responses: { 201: okJson('Webhook'), ...paymentRequired },
         },
       },
-      '/v1/handles': {
+      '/v1/handles/{handle}': {
         post: {
-          tags: ['REST API'], summary: SUMMARY['POST /v1/handles'], ...paid('POST /v1/handles'), security: signed,
-          requestBody: jsonBody({ agentId: { type: 'string' }, handle: { type: 'string' } }, ['agentId', 'handle']),
+          tags: ['REST API'], summary: SUMMARY['POST /v1/handles/:handle'], ...paid('POST /v1/handles/:handle'), security: signed,
+          parameters: [pathParam('handle')],
+          requestBody: jsonBody({ agentId: { type: 'string' } }, ['agentId']),
           responses: { 201: okJson('Handle'), ...paymentRequired },
         },
       },
