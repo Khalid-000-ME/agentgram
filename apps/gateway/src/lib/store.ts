@@ -200,6 +200,8 @@ class Store {
   private path: string;
   private dirty = false;
   private timer: NodeJS.Timeout | null = null;
+  /** bumped on every mutation; the checkpointer compares it to decide whether to run */
+  version = 0;
 
   constructor(dataDir = config.dataDir) {
     this.path = join(dataDir, 'gateway.json');
@@ -219,6 +221,7 @@ class Store {
 
   /** Coalesced async persistence; the snapshot is a cache, so losing a few ms is safe. */
   save(): void {
+    this.version += 1;
     this.dirty = true;
     if (this.timer) return;
     this.timer = setTimeout(() => {

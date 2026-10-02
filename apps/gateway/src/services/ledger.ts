@@ -39,6 +39,8 @@ export interface Ledger {
   submit(topicId: string, payload: Uint8Array): Promise<SubmitResult>;
   read(topicId: string, opts?: { afterSeq?: number; limit?: number }): Promise<LedgerMessage[]>;
   get(topicId: string, seq: number): Promise<LedgerMessage | null>;
+  /** highest sequence number on a topic, 0 if empty */
+  latestSeq(topicId: string): Promise<number>;
   info(): Record<string, unknown>;
   close(): Promise<void>;
 }
@@ -114,6 +116,10 @@ class LocalLedger implements Ledger {
   async get(topicId: string, seq: number): Promise<LedgerMessage | null> {
     const m = this.topics[topicId]?.messages.find((x) => x.seq === seq);
     return m ? this.toMessage(topicId, m) : null;
+  }
+
+  async latestSeq(topicId: string): Promise<number> {
+    return this.topics[topicId]?.messages.length ?? 0;
   }
 
   private toMessage(topicId: string, m: LocalMessage): LedgerMessage {
@@ -217,6 +223,13 @@ class HederaLedger implements Ledger {
       runningHash: String(m.running_hash ?? ''),
       contents: new Uint8Array(Buffer.from(String(m.message), 'base64')),
     }));
+  }
+
+  async latestSeq(topicId: string): Promise<number> {
+    const res = await fetch(`${config.hedera.mirrorRest}/api/v1/topics/${topicId}/messages?order=desc&limit=1`);
+    if (!res.ok) return 0;
+    const json = (await res.json()) as { messages?: Array<{ sequence_number: number }> };
+    return Number(json.messages?.[0]?.sequence_number ?? 0);
   }
 
   async get(topicId: string, seq: number): Promise<LedgerMessage | null> {

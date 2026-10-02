@@ -109,7 +109,11 @@ export async function streamInbox(agentId: string, res: Response, fromSeq?: numb
   let startSeq = fromSeq;
   if (startSeq === undefined) {
     const known = store.notices(agentId);
-    startSeq = known.length ? Math.max(...known.map((n) => n.seq)) : 0;
+    // After a restart the local notice cache is empty; asking the topic for its head keeps
+    // a reconnecting agent from being replayed its whole inbox history.
+    startSeq = known.length
+      ? Math.max(...known.map((n) => n.seq))
+      : await ledger().latestSeq(inboxTopic).catch(() => 0);
   }
 
   const conn: Connection = { agentId, inboxTopic, res, lastSeq: startSeq, sent: new Set(), closed: false };

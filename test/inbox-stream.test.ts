@@ -15,10 +15,11 @@ process.env.HEDERA_ENABLED = 'false';
 process.env.ALERTS_ENABLED = 'false';
 process.env.INBOX_POLL_MS = '400';
 // Isolate from any live deployment configured in .env: these tests must not spend gas.
-delete process.env.REGISTRY_ADDRESS;
-delete process.env.RELAYER_PRIVATE_KEY;
-delete process.env.RELAYER_PRIVATE_KEYS;
-delete process.env.SETTLER_PRIVATE_KEY;
+// Set to empty rather than deleted — dotenv refills absent variables from .env.
+process.env.REGISTRY_ADDRESS = '';
+process.env.RELAYER_PRIVATE_KEY = '';
+process.env.RELAYER_PRIVATE_KEYS = '';
+process.env.SETTLER_PRIVATE_KEY = '';
 
 const { createApp } = await import('../apps/gateway/src/index.ts');
 const { AgentLine, MemoryKeyStore } = await import('../packages/sdk/src/index.ts');

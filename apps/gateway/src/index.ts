@@ -23,6 +23,7 @@ import { safetyRouter } from './routes/safety.ts';
 import { flushAll } from './services/notifier.ts';
 import { ledger, verifyLedger } from './services/ledger.ts';
 import { noteRequest, noteServerError, startHealthMonitor } from './services/health.ts';
+import { checkpoint, checkpointTopic, restoreIfEmpty, startCheckpoints } from './services/checkpoint.ts';
 import { alertConfig, raiseAlert, transportDescription } from './services/alerts.ts';
 
 export function createApp() {
@@ -125,6 +126,23 @@ export async function start(port = config.port) {
     });
   }
   startHealthMonitor();
+
+  // A fresh container starts with an empty disk; bring identity and routing state back from
+  // the encrypted on-chain checkpoint before taking traffic.
+  try {
+    const r = await Promise.race([
+      restoreIfEmpty(),
+      new Promise<{ restored: false; reason: string }>((resolve) =>
+        setTimeout(() => resolve({ restored: false, reason: 'timed out after 25s' }), 25_000)),
+    ]);
+    if (r.restored) console.log(`  restored state from checkpoint topic ${checkpointTopic()} (${(r as { agents?: number }).agents} agents)`);
+    else console.log(`  checkpoint restore skipped: ${r.reason}`);
+  } catch (err) {
+    console.error(`  checkpoint restore failed: ${(err as Error).message}`);
+    raiseAlert({ severity: 'critical', kind: 'checkpoint.restore_failed', title: 'Could not restore state on boot',
+      detail: (err as Error).message });
+  }
+  startCheckpoints();
   const server = app.listen(port, () => {
     console.log(`\n  AgentLine gateway  ->  http://localhost:${port}`);
     console.log(`  consensus: ${chainMode()}   registry: ${registryMode()}   payments: ${paymentMode()}`);
@@ -148,6 +166,8 @@ export async function start(port = config.port) {
     console.log('\n[gateway] shutting down…');
     await flushAll();
     store.flush();
+    // The platform may wipe the disk after this; get the latest state on-chain first.
+    await Promise.race([checkpoint({ force: false }), new Promise((r) => setTimeout(r, 20_000))]);
     await ledger().close();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 3000);
