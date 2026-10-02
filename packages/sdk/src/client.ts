@@ -67,8 +67,24 @@ export interface PeerKeys {
   x25519Pk: string;
 }
 
+/**
+ * How a stored message is encrypted. Neither is better; they fail in opposite directions.
+ *
+ * - `static` — keys come from the two identity keys plus a per-message ephemeral. Anyone
+ *   holding their own identity key can decrypt the archive forever, with no other state to
+ *   keep. The cost: whoever obtains the RECIPIENT's identity key later can read everything
+ *   ever sent to it, and there is no post-quantum protection.
+ * - `ratchet` — PQXDH + Double Ratchet. Forward secrecy and a post-quantum hybrid
+ *   handshake, so a key stolen later opens nothing. The cost: the ratchet state must
+ *   survive on the agent's side; lose it and the conversation is unreadable even though the
+ *   ciphertext is still on-chain (back it up with backupPersonalIndex()). Requires the peer
+ *   to have published prekeys.
+ */
+export type StoreMode = 'static' | 'ratchet';
+
 export interface StoreResult {
   cid: string;
+  mode: StoreMode;
   stored: number;
   sequenceNumber: number;
   consensusTimestamp: string;
@@ -378,32 +394,56 @@ export class AgentLine {
    *
    * This is the flat `/x402/v1/send` path: one payment carries up to five messages, the
    * conversation id is derived from the two agent ids so both sides compute it offline, and
-   * nothing has to exist on the service beforehand. Encryption is static-key mode (see
-   * crypto/static-session): it works with a peer that has published nothing, at the cost of
-   * forward secrecy. For a forward-secret session with a registered peer, use `send()`.
+   * nothing has to exist on the service beforehand.
+   *
+   * `mode` is the caller's call and is never decided silently — see {@link StoreMode}. The
+   * default is `static`, because the point of this path is a record that stays readable
+   * from the identity key alone; pass `ratchet` for forward secrecy when the peer has
+   * published prekeys. The mode used comes back in the result.
    */
   async store(
     peer: string | PeerKeys,
     contents: string | Record<string, unknown> | Array<string | Record<string, unknown>>,
-    opts: { type?: MessageType; importance?: number | number[]; replyTo?: string; schema?: string } = {},
+    opts: {
+      mode?: StoreMode;
+      type?: MessageType; importance?: number | number[]; replyTo?: string; schema?: string;
+    } = {},
   ): Promise<StoreResult> {
     const list = Array.isArray(contents) ? contents : [contents];
     if (!list.length) throw new Error('store(): nothing to store');
     if (list.length > 5) throw new Error('store(): at most 5 messages per call');
 
+    const mode: StoreMode = opts.mode ?? 'static';
     const { agentId: peerAgentId, x25519Pk } = await this.peerKeysOf(peer);
     const cid = deriveConversationId(this.agentId, peerAgentId);
     const peerX = b64.dec(x25519Pk);
     const aad = utf8.enc(cid);
 
+    if (mode === 'ratchet' && !this.state.sessions[cid]) {
+      // One handshake per conversation; it travels inside the first envelope, so the peer
+      // needs nothing from us beforehand.
+      const bundle = await this.fetchPrekeys(peerAgentId).catch(() => {
+        throw new Error(
+          `store(): ${peerAgentId} has published no prekeys, so a ratchet session cannot be started. `
+          + 'Use mode "static", or ask the peer to register and publish prekeys.',
+        );
+      });
+      this.state.sessions[cid] = initiateSession(this.identity, bundle, cid, { pq: this.opts.pq !== false });
+      this.state.sessions[cid].peerAgentId = peerAgentId;
+    }
+
     const msgIds: string[] = [];
     const envelopes = list.map((content) => {
       const { body, plaintext, ft } = this.compose(cid, content, { type: opts.type, replyTo: opts.replyTo, schema: opts.schema });
       msgIds.push(body.id);
-      const sealed = staticSeal(this.identity, peerX, plaintext, aad);
-      const envelope: Envelope = {
-        v: 1, k: 'dm', cid, sd: this.deviceId, hdr: sealed.hdr, ct: sealed.ct, ft,
-      };
+      let envelope: Envelope;
+      if (mode === 'ratchet') {
+        const enc = ratchetEncrypt(this.state.sessions[cid], plaintext, aad);
+        envelope = { v: 1, k: 'dm', cid, sd: this.deviceId, hdr: enc.hdr, hs: enc.hs, ct: enc.ct, ft };
+      } else {
+        const sealed = staticSeal(this.identity, peerX, plaintext, aad);
+        envelope = { v: 1, k: 'dm', cid, sd: this.deviceId, hdr: sealed.hdr, ct: sealed.ct, ft };
+      }
       return b64.enc(encodeEnvelope(envelope));
     });
 
@@ -428,9 +468,30 @@ export class AgentLine {
     await this.persist();
 
     return {
-      cid, stored: res.stored, sequenceNumber: res.sequenceNumber,
+      cid, mode, stored: res.stored, sequenceNumber: res.sequenceNumber,
       consensusTimestamp: res.consensusTimestamp, msgIds,
       pendingAgents: res.pending?.agents,
+    };
+  }
+
+  /**
+   * Which modes this agent can use with a peer right now.
+   *
+   * `store()` never guesses, so this is how a caller that wants to choose well finds out
+   * whether the forward-secret path is even available.
+   */
+  async encryptionOptions(peer: string | PeerKeys): Promise<{
+    modes: StoreMode[]; peerHasPrekeys: boolean; recommended: StoreMode; why: string;
+  }> {
+    const { agentId } = await this.peerKeysOf(peer);
+    const peerHasPrekeys = await this.fetchPrekeys(agentId).then(() => true).catch(() => false);
+    return {
+      modes: peerHasPrekeys ? ['static', 'ratchet'] : ['static'],
+      peerHasPrekeys,
+      recommended: peerHasPrekeys ? 'ratchet' : 'static',
+      why: peerHasPrekeys
+        ? 'The peer has prekeys, so the forward-secret ratchet is available. Choose "static" instead if the archive must stay readable from your identity key alone, with no ratchet state to keep.'
+        : 'The peer has published no prekeys, so only "static" is possible. It stays readable from your identity key alone, but gives no forward secrecy and no post-quantum protection.',
     };
   }
 

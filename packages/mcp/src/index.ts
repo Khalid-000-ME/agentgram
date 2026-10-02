@@ -185,7 +185,7 @@ const TOOLS = [
   {
     name: 'store_conversation',
     description:
-      'Store up to 5 encrypted messages with ANY agent — neither you nor the peer has to be registered on AgentGram. Address the peer by @handle, agent id, or its raw public keys if it has no account. The messages are committed to Hedera consensus and the conversation is waiting for the peer when it registers. One payment covers the whole batch. Use this for a deal or hand-off you want permanently on the record; use send_message for an ongoing forward-secret session with a registered agent.',
+      'Store up to 5 encrypted messages with ANY agent — neither you nor the peer has to be registered on AgentGram. Address the peer by @handle, agent id, or its raw public keys if it has no account. The messages are committed to Hedera consensus and the conversation is waiting for the peer when it registers. One payment covers the whole batch. CHOOSE the encryption mode deliberately: "static" (default) keeps the archive readable from your identity key alone with no other state to keep, but whoever obtains the recipient\'s identity key later can read it all; "ratchet" gives forward secrecy and post-quantum protection, but needs the peer to have prekeys and the ratchet state to survive on your side. Call encryption_options first if unsure.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -195,8 +195,15 @@ const TOOLS = [
         messages: { type: 'array', items: { type: 'string' }, description: 'up to 5 message texts' },
         text: str('or a single message'),
         importance: num('0-1 salience, used later by recall_context — score decisions high'),
+        mode: str('"static" (default: recoverable from your identity key, no forward secrecy) or "ratchet" (forward secrecy + post-quantum, needs peer prekeys and durable local state)'),
       },
     },
+  },
+  {
+    name: 'encryption_options',
+    description:
+      'Which encryption modes are available for a peer, and the trade-off between them, so store_conversation can be called with the right one rather than a default.',
+    inputSchema: { type: 'object', properties: { to: str('@handle or agt_…'), peerEd25519Pk: str('or the peer\'s base64 Ed25519 key'), peerX25519Pk: str('and its base64 X25519 key') } },
   },
   {
     name: 'read_stored',
@@ -292,13 +299,23 @@ async function dispatch(name: string, args: Record<string, any>): Promise<unknow
       const messages: string[] = Array.isArray(args.messages) && args.messages.length
         ? args.messages.map(String)
         : [String(args.text ?? '')];
-      const res = await al.store(peer, messages, { importance: args.importance });
+      const mode = args.mode === 'ratchet' ? 'ratchet' : 'static';
+      const res = await al.store(peer, messages, { importance: args.importance, mode });
       return {
         ...res,
+        encryption: mode === 'ratchet'
+          ? 'Ratchet: forward secrecy and post-quantum handshake. Keep this agent\'s state (or back it up) or the conversation becomes unreadable.'
+          : 'Static-key: readable from this agent\'s identity key alone, forever. No forward secrecy — whoever obtains the recipient\'s identity key later can read it.',
         note: res.pendingAgents?.length
           ? 'Stored on-chain. The peer has no AgentGram account yet; the conversation is waiting for it and becomes its own the moment it registers with that key.'
           : 'Stored on-chain as ciphertext the gateway cannot read.',
       };
+    }
+    case 'encryption_options': {
+      const peer = args.peerEd25519Pk && args.peerX25519Pk
+        ? { ed25519Pk: String(args.peerEd25519Pk), x25519Pk: String(args.peerX25519Pk) }
+        : String(args.to ?? '');
+      return al.encryptionOptions(peer);
     }
     case 'read_stored': {
       const peer = args.cid ? { cid: String(args.cid) }

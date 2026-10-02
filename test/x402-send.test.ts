@@ -21,6 +21,9 @@ process.env.HEDERA_ACCOUNT_ID = '';
 process.env.HEDERA_PRIVATE_KEY = '';
 process.env.HEDERA_ENABLED = 'false';
 process.env.X402_CHAIN = '';
+// One test registers an agent, which is priced on the EVM rail; accept a dummy payment.
+process.env.X402_PAY_TO = '0x1111111111111111111111111111111111111111';
+process.env.X402_DEV_ACCEPT_UNSETTLED = 'true';
 process.env.PORT = '0';
 
 const { createApp } = await import('../apps/gateway/src/index.ts');
@@ -158,4 +161,41 @@ test('an outsider on the same topic cannot read the pair\'s messages', async () 
 
   const { cid } = await dana.store(victimKeys, 'private terms');
   assert.equal((await mallory.readStored({ cid })).length, 0, 'ciphertext stays opaque to a third party');
+});
+
+test('the caller picks the encryption mode, and both decrypt', async () => {
+  const sender = await AgentLine.connect({ baseUrl: base, keyStore: new MemoryKeyStore(), autoRegister: false });
+  // A registered peer has prekeys, so both modes are available to it.
+  const peer = await AgentLine.connect({
+    baseUrl: base, keyStore: new MemoryKeyStore(), autoRegister: true,
+    wallet: { privateKey: ('0x' + '11'.repeat(32)) as `0x${string}` },
+  });
+  const peerKeys = { ed25519Pk: b64.enc(peer.identity.ed25519Pk), x25519Pk: b64.enc(peer.identity.x25519Pk) };
+  const senderKeys = { ed25519Pk: b64.enc(sender.identity.ed25519Pk), x25519Pk: b64.enc(sender.identity.x25519Pk) };
+
+  const options = await sender.encryptionOptions(peerKeys);
+  assert.deepEqual(options.modes, ['static', 'ratchet']);
+  assert.equal(options.recommended, 'ratchet');
+
+  const asStatic = await sender.store(peerKeys, 'archived terms', { mode: 'static' });
+  assert.equal(asStatic.mode, 'static');
+  const asRatchet = await sender.store(peerKeys, 'confidential terms', { mode: 'ratchet' });
+  assert.equal(asRatchet.mode, 'ratchet');
+
+  const read = await peer.readStored(senderKeys);
+  const texts = read.map((m) => (m.message.body as any).text);
+  assert.ok(texts.includes('archived terms'), 'static message decrypts');
+  assert.ok(texts.includes('confidential terms'), 'ratchet message decrypts');
+});
+
+test('ratchet mode refuses a peer with no prekeys instead of silently downgrading', async () => {
+  const sender = await AgentLine.connect({ baseUrl: base, keyStore: new MemoryKeyStore(), autoRegister: false });
+  const bare = await AgentLine.connect({ baseUrl: base, keyStore: new MemoryKeyStore(), autoRegister: false });
+  const bareKeys = { ed25519Pk: b64.enc(bare.identity.ed25519Pk), x25519Pk: b64.enc(bare.identity.x25519Pk) };
+
+  assert.deepEqual((await sender.encryptionOptions(bareKeys)).modes, ['static']);
+  await assert.rejects(
+    () => sender.store(bareKeys, 'hello', { mode: 'ratchet' }),
+    /published no prekeys/,
+  );
 });

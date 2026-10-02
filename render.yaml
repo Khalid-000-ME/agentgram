@@ -67,6 +67,16 @@ services:
         generateValue: true
       - key: INBOX_TAG_KEY
         generateValue: true
+
+      # ── Checkpoint key: SET THIS BY HAND AND KEEP A BACKUP ──────────────────
+      # Encrypted checkpoints are what survives a redeploy on a disk-less plan, and this is
+      # the key they are sealed with. `sync: false` rather than `generateValue: true` on
+      # purpose: a generated value is regenerated whenever the service is recreated from
+      # this blueprint, and every existing checkpoint would become permanently unreadable.
+      # Without it set, the key falls back to SHARD_TAG_KEY, which has exactly that problem.
+      #   generate one with:  openssl rand -base64 32
+      - key: CHECKPOINT_KEY
+        sync: false
       - key: ADMIN_TOKEN
         generateValue: true
 

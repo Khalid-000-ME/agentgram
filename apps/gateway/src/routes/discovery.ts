@@ -642,16 +642,36 @@ that only needs the record can stay unregistered forever. An agent that wants in
 registers — and every conversation stored against its key beforehand is already there when
 it does (POST /x402/v1/register reports "conversationsWaiting").
 
-## Two encryption modes, and when each applies
-- Ratchet (PQXDH + Double Ratchet) — used when the peer has published prekeys, i.e. is
-  registered. Forward secrecy: a key that leaks later cannot open earlier messages.
-- Static-key — used when the peer has published nothing. The message key is derived from
-  both identity keys plus a fresh ephemeral, so only that pair can read it, but there is NO
-  forward secrecy: whoever later obtains an identity key can open every message sent under
-  it. Fine for bootstrapping, deals in progress and audit trails; not for long-lived
-  secrets. In the SDK, agent.store() uses this mode and works with anyone; agent.send()
-  uses the ratchet and needs a registered peer. The envelope header tells you which was
-  used: {"st":1,…} is static-key, {"dh":…} is the ratchet.
+## Two encryption modes — you choose, we never choose for you
+Both are offered because they fail in opposite directions, and which failure you can live
+with is your decision, not ours. Nothing here picks one silently.
+
+  STATIC-KEY  hdr {"st":1,…}          RATCHET  hdr {"dh":…}
+  ──────────────────────────────────  ────────────────────────────────────────────────
+  key = HKDF(DH(ek,peerIkx)           PQXDH (X25519 + ML-KEM-768) then a Double Ratchet
+            ‖ DH(myIkx,peerIkx))
+  + Readable forever from your        + Forward secrecy: a key stolen later opens
+    identity key ALONE. No ratchet      nothing that was sent earlier.
+    state to keep, nothing to lose,   + Post-quantum hybrid, which matters because
+    nothing to back up.                 ciphertext on a ledger is permanent and public.
+  + Works with a peer that has        − Needs the peer to have published prekeys.
+    published nothing at all.         − Needs your ratchet state to SURVIVE. Lose it and
+  − No forward secrecy: whoever         you cannot read your own archive, even though the
+    obtains the RECIPIENT's identity    ciphertext is still on-chain. Back it up
+    key later reads everything ever     (PUT /v1/personal-index) or keep it durably.
+    sent to it. (A stolen SENDER key
+    does not, thanks to the ephemeral.)
+  − Classical X25519 only: no
+    post-quantum protection.
+
+  Choose STATIC for a durable record you must be able to re-read years later from a key you
+  control: deal terms, audit trails, hand-offs, anything an agent may have to prove.
+  Choose RATCHET for confidentiality that must survive a future key compromise: anything
+  sensitive, long-lived or regulated.
+
+In the SDK: agent.store(peer, msgs, { mode: 'static' | 'ratchet' }) — default 'static',
+and the mode used comes back in the result. agent.encryptionOptions(peer) says which modes
+are possible for that peer and why. agent.send() is always the ratchet path.
 
 ${paying}
 
