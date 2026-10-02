@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * agentline-mcp — AgentLine as MCP tools (PRD §10.2).
+ * agentgram-mcp — AgentGram as MCP tools (PRD §10.2).
  *
  * All crypto runs inside this process, on the agent's own machine: identity keys, ratchet
  * state and the personal index never leave it. The tool names are the contract and are
  * kept stable.
  *
- *   npx agentline-mcp
- *   env: AGENTLINE_URL, AGENTLINE_KEYSTORE, AGENTLINE_WALLET_KEY, AGENTLINE_HANDLE
+ *   npx tsx packages/mcp/src/index.ts
+ *   env: AGENTGRAM_URL (default https://agentgram.onrender.com),
+ *        AGENTGRAM_ALGORAND_MNEMONIC or AGENTGRAM_ALGORAND_KEY  — pays in USDC on Algorand,
+ *        AGENTLINE_KEYSTORE, AGENTLINE_HANDLE, AGENTLINE_WALLET_KEY (EVM deployments)
  */
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -16,9 +18,11 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { AgentLine, FileKeyStore } from '@agentline/sdk';
 
-const BASE_URL = process.env.AGENTLINE_URL ?? 'http://localhost:8402';
+const BASE_URL = process.env.AGENTGRAM_URL ?? process.env.AGENTLINE_URL ?? 'https://agentgram.onrender.com';
 const KEYSTORE = process.env.AGENTLINE_KEYSTORE ?? join(homedir(), '.agentline', 'keystore.json');
 const WALLET_KEY = process.env.AGENTLINE_WALLET_KEY as `0x${string}` | undefined;
+const ALGO_MNEMONIC = process.env.AGENTGRAM_ALGORAND_MNEMONIC;
+const ALGO_KEY = process.env.AGENTGRAM_ALGORAND_KEY;
 
 let agent: AgentLine | null = null;
 
@@ -28,6 +32,10 @@ async function client(): Promise<AgentLine> {
     baseUrl: BASE_URL,
     keyStore: new FileKeyStore(KEYSTORE),
     wallet: WALLET_KEY ? { privateKey: WALLET_KEY } : undefined,
+    // The hosted AgentGram deployment is paid in USDC on Algorand.
+    algorand: ALGO_MNEMONIC || ALGO_KEY
+      ? { mnemonic: ALGO_MNEMONIC, secretKey: ALGO_KEY, network: process.env.AGENTGRAM_ALGORAND_NETWORK === 'testnet' ? 'testnet' : 'mainnet' }
+      : undefined,
     handle: process.env.AGENTLINE_HANDLE,
     autoRegister: process.env.AGENTLINE_AUTOREGISTER !== 'false',
     profile: process.env.AGENTLINE_PROFILE ? JSON.parse(process.env.AGENTLINE_PROFILE) : undefined,
@@ -176,7 +184,7 @@ const TOOLS = [
   },
 ];
 
-const server = new Server({ name: 'agentline', version: '0.1.0' }, { capabilities: { tools: {} } });
+const server = new Server({ name: 'agentgram', version: '0.1.0' }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 

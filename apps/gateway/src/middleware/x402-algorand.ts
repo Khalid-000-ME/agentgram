@@ -77,6 +77,27 @@ const PRICES = {
 } as const;
 
 /**
+ * The full signed REST surface (/v1), priced on the same rail.
+ *
+ * Without these, selecting Algorand silently made every /v1 route free: the EVM rail stands
+ * down in that mode and nothing else priced them. Each is at least 2x its measured cost —
+ * a topic is $0.01, a message submit $0.0008, a registry write ~$0.005.
+ */
+const V1_PRICES = {
+  agents: '$0.08',        // same work as /x402/v1/register
+  prekeys: '$0.01',       // one HCS profile message + index
+  conversation: '$0.03',  // a topic plus a registry mapping write
+  message: '$0.005',      // two HCS submits
+  messagesRead: '$0.001',
+  receipts: '$0.002',     // one HCS submit
+  group: '$0.10',         // a topic, a sender-key epoch, a registry write
+  channel: '$0.25',
+  webhook: '$0.50',       // 30 days of delivery
+  handle: '$0.50',        // one year
+  directory: '$0.001',
+} as const;
+
+/**
  * Build one route entry.
  *
  * `extra` carries the USDC asset id and the challenge tag; the tag is what the competition
@@ -84,6 +105,7 @@ const PRICES = {
  */
 function route(opts: {
   name: string;
+  tags?: string[];
   price: string;
   description: string;
   example: Record<string, unknown>;
@@ -115,7 +137,7 @@ function route(opts: {
  * extension is declared. Without them the endpoint is listed but nameless and untagged.
  */
 function discovery(opts: {
-  name: string; description: string; example: Record<string, unknown>;
+  name: string; description: string; example: Record<string, unknown>; tags?: string[];
   input?: Record<string, unknown>; inputSchema?: Record<string, unknown>;
 }) {
   const ext = declareDiscoveryExtension(
@@ -126,7 +148,7 @@ function discovery(opts: {
   Object.assign(ext.bazaar.info, {
     name: opts.name,
     description: opts.description,
-    tags: [config.algorand.challengeTag, 'agents', 'messaging', 'end-to-end-encryption', 'hedera'],
+    tags: [config.algorand.challengeTag, 'agentgram', 'agents', 'messaging', 'end-to-end-encryption', 'hedera', ...(opts.tags ?? [])],
   });
   return ext;
 }
@@ -283,6 +305,146 @@ export function algorandRoutes() {
           { agentId: 'agt_...', handle: '@skyquote', capabilities: [{ name: 'quote_flight' }], inboxTopic: '0.0.10796004' },
         ],
       },
+    }),
+
+    ...v1Routes(),
+  };
+}
+
+/**
+ * Bazaar entries for the signed REST API. These routes also need an RFC 9421 signature from
+ * the acting agent (see /llms.txt); the payment and the signature are independent headers.
+ */
+function v1Routes() {
+  const signed = ' Requires an RFC 9421 Ed25519 request signature from the acting agent (AgentLine-Key-Id, Signature-Input, Signature, Content-Digest) in addition to payment.';
+  return {
+    'POST /v1/agents': route({
+      name: 'AgentGram · register agent (REST)',
+      price: V1_PRICES.agents,
+      tags: ['identity'],
+      description: 'Register an agent identity: an agent id derived from your Ed25519 key, a Hedera inbox topic, a profile topic and an on-chain registry entry. Same as POST /x402/v1/register, plus dmPolicy, profile and capabilities.',
+      input: { ed25519Pk: '<base64>', x25519Pk: '<base64>', handle: 'my.agent', profile: { name: 'My Agent', capabilities: ['quote_flight'] } },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          ed25519Pk: { type: 'string' }, x25519Pk: { type: 'string' }, handle: { type: 'string' },
+          dmPolicy: { type: 'string', enum: ['everyone', 'contacts', 'paid_only', 'allowlist'] },
+          profile: { type: 'object', description: 'name, description, capabilities[] — shown in the directory' },
+        },
+        required: ['ed25519Pk', 'x25519Pk'],
+      },
+      example: { agentId: 'agt_...', inboxTopic: '0.0.10796004', profileTopic: '0.0.10796005' },
+    }),
+    'PUT /v1/agents/:agentId/prekeys': route({
+      name: 'AgentGram · publish prekeys',
+      price: V1_PRICES.prekeys,
+      tags: ['identity', 'pqxdh'],
+      description: 'Publish a signed prekey, one-time prekeys and ML-KEM-768 prekeys so other agents can open post-quantum encrypted sessions with you while you are offline.' + signed,
+      input: {
+        deviceId: 'dev_...', ed25519Pk: '<base64>', x25519Pk: '<base64>', bundleId: 'b1',
+        signedPrekey: { id: 1, pk: '<base64>', sig: '<base64>' },
+        oneTimePrekeys: [{ id: 2, pk: '<base64>' }], pqPrekeys: [{ id: 3, pk: '<base64 ML-KEM-768>', sig: '<base64>' }],
+      },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          deviceId: { type: 'string' }, ed25519Pk: { type: 'string' }, x25519Pk: { type: 'string' }, bundleId: { type: 'string' },
+          signedPrekey: { type: 'object' }, oneTimePrekeys: { type: 'array' }, pqPrekeys: { type: 'array' },
+        },
+        required: ['deviceId', 'ed25519Pk', 'x25519Pk', 'signedPrekey'],
+      },
+      example: { deviceId: 'dev_...', bundleId: 'b1', oneTimeRemaining: 100, pqRemaining: 20 },
+    }),
+    'POST /v1/conversations': route({
+      name: 'AgentGram · open conversation',
+      price: V1_PRICES.conversation,
+      tags: ['conversations'],
+      description: 'Open a direct conversation with another agent by id or @handle. Creates its Hedera consensus topic and records the conversation id, which both sides can derive offline from their two agent ids.' + signed,
+      input: { peerAgentId: 'agt_... or @handle', mode: 'open' },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          peerAgentId: { type: 'string' },
+          mode: { type: 'string', enum: ['open', 'sealed'] },
+          cid: { type: 'string', description: 'sealed mode only: your client-derived conversation id' },
+        },
+        required: ['peerAgentId'],
+      },
+      example: { cid: 'cnv_pu5vye46gyfjxukvs4t4j3lheexfumkt', topicId: '0.0.10796010', mode: 'open', peer: { agentId: 'agt_...', inboxTopic: '0.0.10796004' } },
+    }),
+    'POST /v1/conversations/:cid/messages': route({
+      name: 'AgentGram · send message (REST)',
+      price: V1_PRICES.message,
+      tags: ['conversations'],
+      description: 'Send an end-to-end-encrypted envelope into a conversation and commit it to Hedera consensus. Returns the sequence number, consensus timestamp and running hash.' + signed,
+      input: { envelope: { v: 1, k: 'dm', hdr: {}, ct: '<base64 ciphertext>' }, msgId: 'msg_...' },
+      inputSchema: { type: 'object', properties: { envelope: { type: 'object' }, msgId: { type: 'string' } }, required: ['envelope'] },
+      example: { sequenceNumber: 4812, consensusTimestamp: '1790792294.484705104', runningHash: '0849c1b2...' },
+    }),
+    'GET /v1/conversations/:cid/messages': route({
+      name: 'AgentGram · read messages (REST)',
+      price: V1_PRICES.messagesRead,
+      tags: ['conversations'],
+      description: 'Read one page of a conversation as ciphertext with consensus proofs. Query: afterSeq, limit (max 200).' + signed,
+      example: { messages: [{ seq: 9, consensusTimestamp: '1790792294.98', envelope: {} }], hasMore: false },
+    }),
+    'POST /v1/conversations/:cid/receipts': route({
+      name: 'AgentGram · delivery and work receipts',
+      price: V1_PRICES.receipts,
+      tags: ['conversations'],
+      description: 'Post an encrypted batched receipt: delivered, read, processing, done or failed, up to a sequence number. Agents use processing/done/failed to report the state of work they were asked to do.' + signed,
+      input: { envelope: { v: 1, k: 'dm', ct: '<base64 encrypted receipt>' }, upTo: 4812 },
+      inputSchema: { type: 'object', properties: { envelope: { type: 'object' }, upTo: { type: 'number' } }, required: ['envelope'] },
+      example: { cid: 'cnv_...', sequenceNumber: 4813, consensusTimestamp: '1790792299.120000000' },
+    }),
+    'POST /v1/groups': route({
+      name: 'AgentGram · create encrypted group',
+      price: V1_PRICES.group,
+      tags: ['groups'],
+      description: 'Create a multi-agent encrypted group with admins, invite links and sender-key epochs that rotate on every membership change.' + signed,
+      input: { name: 'procurement-desk', members: ['agt_...', '@supplier'], onlyAdminsSend: false },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' }, members: { type: 'array', items: { type: 'string' } },
+          onlyAdminsSend: { type: 'boolean' }, adminsAddOnly: { type: 'boolean' }, sealedMembership: { type: 'boolean' },
+        },
+      },
+      example: { groupId: 'grp_...', cid: 'cnv_...', topicId: '0.0.10796030', members: ['agt_...', 'agt_...'] },
+    }),
+    'POST /v1/channels': route({
+      name: 'AgentGram · create broadcast channel',
+      price: V1_PRICES.channel,
+      tags: ['channels'],
+      description: 'Create a one-to-many broadcast channel, public or encrypted to subscribers, for price feeds, status updates or announcements to many agents.' + signed,
+      input: { name: 'fx-rates', description: 'USD/EUR every minute', encrypted: false },
+      inputSchema: { type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' }, encrypted: { type: 'boolean' } } },
+      example: { channelId: 'chn_...', cid: 'cnv_...', topicId: '0.0.10796040', encrypted: false, followers: 0 },
+    }),
+    'POST /v1/webhooks': route({
+      name: 'AgentGram · webhook delivery (30 days)',
+      price: V1_PRICES.webhook,
+      tags: ['notifications'],
+      description: 'Register an HMAC-signed webhook that is called whenever a message lands in your inbox, for 30 days. Alternative to polling or holding an SSE connection.' + signed,
+      input: { url: 'https://my-agent.example/hooks/agentgram' },
+      inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
+      example: { url: 'https://my-agent.example/hooks/agentgram', secret: '<hmac secret>', expiresAt: 1793384294000 },
+    }),
+    'POST /v1/handles': route({
+      name: 'AgentGram · claim @handle (1 year)',
+      price: V1_PRICES.handle,
+      tags: ['identity'],
+      description: 'Claim or renew a human-readable @handle for one year, so other agents can reach you by name instead of agent id.' + signed,
+      input: { agentId: 'agt_...', handle: 'my.agent' },
+      inputSchema: { type: 'object', properties: { agentId: { type: 'string' }, handle: { type: 'string' } }, required: ['agentId', 'handle'] },
+      example: { handle: '@my.agent', agentId: 'agt_...', expiresInDays: 365 },
+    }),
+    'GET /v1/directory': route({
+      name: 'AgentGram · agent directory (REST)',
+      price: V1_PRICES.directory,
+      tags: ['directory'],
+      description: 'Search registered agents by ?q= text or ?capability=. Returns ids, handles, capabilities and inbox topics.',
+      example: { count: 1, agents: [{ agentId: 'agt_...', handle: '@skyquote', capabilities: ['quote_flight'] }] },
     }),
   };
 }

@@ -59,8 +59,8 @@ const connect = (opts: Record<string, unknown> = {}) =>
   AgentLine.connect({ baseUrl, keyStore: new MemoryKeyStore(), wallet: WALLET, ...opts });
 
 test('discovery surfaces are self-describing', async () => {
-  const manifest = await getJson(fetch(`${baseUrl}/.well-known/agentline.json`));
-  assert.equal(manifest.name, 'AgentLine');
+  const manifest = await getJson(fetch(`${baseUrl}/.well-known/agentgram.json`));
+  assert.equal(manifest.name, 'AgentGram');
   assert.equal(manifest.protocols.payment.standard, 'x402');
   assert.ok(manifest.prices.length > 5, 'price table is published');
 
@@ -74,6 +74,13 @@ test('discovery surfaces are self-describing', async () => {
 
   const card = await getJson(fetch(`${baseUrl}/.well-known/agent-card.json`));
   assert.ok(Array.isArray(card.skills));
+  assert.ok(card.iconUrl.endsWith('/logo.png'));
+
+  // Catalogs that scrape the site read the page title and icon, not the JSON.
+  const page = await fetch(`${baseUrl}/`, { headers: { accept: 'text/html' } });
+  assert.match(await page.text(), /<title>AgentGram<\/title>/);
+  const logo = await fetch(`${baseUrl}/logo.png`);
+  assert.equal(logo.headers.get('content-type'), 'image/png');
 });
 
 test('a paid route challenges with x402 before serving', async () => {

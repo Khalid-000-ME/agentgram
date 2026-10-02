@@ -22,12 +22,15 @@ import {
 } from '@agentline/protocol';
 import { FileKeyStore, MemoryKeyStore, type AgentPersistedState, type KeyStore } from './keystore.ts';
 import { NullPayer, WalletPayer, pickRequirements, type Payer } from './payer.ts';
+import { algorandFetch, type AlgorandWallet } from './algorand.ts';
 
 export interface ConnectOptions {
   baseUrl?: string;
   keyStore?: KeyStore | string;
   /** wallet that pays x402 charges */
   wallet?: { privateKey: `0x${string}`; rpcUrl?: string; chainId?: number };
+  /** pay in USDC on Algorand instead (the hosted AgentGram deployment's rail) */
+  algorand?: AlgorandWallet;
   payer?: Payer;
   /** register on first connect (default true) */
   autoRegister?: boolean;
@@ -80,6 +83,13 @@ export class AgentLine {
       : opts.keyStore ?? new MemoryKeyStore();
     this.payer = opts.payer ?? (opts.wallet ? new WalletPayer(opts.wallet) : new NullPayer());
     this.fetchImpl = opts.fetchImpl ?? fetch;
+    if (opts.algorand) {
+      // Algorand payments are settled inside the wrapped fetch, so a 402 never reaches the
+      // EVM retry below; the payer address is still what registration records as owner.
+      const algo = algorandFetch(opts.algorand, this.fetchImpl);
+      this.fetchImpl = algo.fetch;
+      if (!opts.payer && !opts.wallet) this.payer = { address: algo.address, pay: async () => { throw new Error('Algorand payment did not settle'); } };
+    }
   }
 
   static async connect(opts: ConnectOptions = {}): Promise<AgentLine> {
@@ -855,3 +865,4 @@ export class AgentLine {
 }
 
 export { FileKeyStore, MemoryKeyStore, WalletPayer, NullPayer };
+export { algorandFetch, algorandSigner, ALGORAND_NETWORKS, type AlgorandWallet } from './algorand.ts';

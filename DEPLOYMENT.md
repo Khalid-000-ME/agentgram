@@ -1,4 +1,4 @@
-# Deploying AgentLine
+# Deploying AgentGram
 
 Written for: whoever puts this gateway on the internet.
 
@@ -178,7 +178,7 @@ The shape that gets both benefits:
 ```
   Vercel                        Render / Fly
   ────────────────────          ─────────────────────────
-  Next.js site, docs,     ───►  AgentLine gateway
+  Next.js site, docs,     ───►  AgentGram gateway
   dashboards, console           persistent process
   (short, stateless)            Hedera gRPC + relayer + SSE
 ```
