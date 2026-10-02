@@ -55,10 +55,19 @@ function asa(): string {
   return config.algorand.network === 'mainnet' ? USDC_MAINNET_ASA_ID : USDC_TESTNET_ASA_ID;
 }
 
-/** Price table for the Algorand rail. Flat per route: the facilitator settles a fixed amount. */
+/**
+ * Price table for the Algorand rail. Flat per route: the facilitator settles a fixed amount.
+ *
+ * Priced against measured infrastructure cost, not guessed. Hedera charges $0.0008 per
+ * ConsensusSubmitMessage and $0.01 per ConsensusCreateTopic; a Base registry write measured
+ * ~$0.005 at current gas. A send is TWO submits — the conversation topic and the
+ * recipient's inbox notice — so it costs $0.0016, and the earlier $0.002 left a 1.25x
+ * margin against the PRD's 2x floor. Reads and recall touch only the index, so they are
+ * priced for the value of the answer rather than its cost.
+ */
 const PRICES = {
-  register: '$0.05',
-  send: '$0.002',
+  register: '$0.08',   // ~$0.0257 infra: two topics, a profile message, a registry write
+  send: '$0.005',      // ~$0.0016 infra: two HCS submits
   read: '$0.001',
   recall: '$0.004',
   directory: '$0.001',

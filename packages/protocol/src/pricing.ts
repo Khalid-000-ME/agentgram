@@ -14,11 +14,13 @@ export interface PriceRule {
 }
 
 export const PRICES: Record<string, PriceRule> = {
-  'POST /v1/agents':                    { price: '0.50',   description: 'Register agent: inbox + profile topic, registry write' },
+  'POST /v1/agents':                    { price: '0.50',   description: 'Register agent: inbox + profile topic, registry write (~$0.026 infra)' },
   'POST /v1/handles':                   { price: '1.00',   description: 'Claim or renew an @handle for one year' },
   'PUT /v1/prekeys':                    { price: '0.01',   description: 'Publish a prekey bundle' },
   'POST /v1/conversations':             { price: '0.05',   description: 'Open a conversation (topic creation)' },
-  'POST /v1/messages':                  { price: '0.001',  perKB: '0.0005', description: 'Send a message to a contact' },
+  // A send is two HCS submits (conversation topic + recipient inbox notice) at $0.0008
+  // each, so $0.0016 of infrastructure; priced above the 2x floor the PRD sets.
+  'POST /v1/messages':                  { price: '0.005',  perKB: '0.0005', description: 'Send a message to a contact' },
   'POST /v1/messages:first-contact':    { price: '0.01',   perKB: '0.0005', description: 'First message to a non-contact (anti-spam stamp)' },
   'POST /v1/receipts':                  { price: '0.0002', description: 'Batched delivery/read receipts' },
   'POST /v1/groups':                    { price: '0.25',   description: 'Create a group' },
