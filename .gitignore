@@ -12,3 +12,6 @@ contracts/cache
 packages/*/dist/
 packages/*/LICENSE
 *.tgz
+
+# npm auth, if you ever add one locally — never commit credentials
+.npmrc
