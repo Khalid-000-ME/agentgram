@@ -31,6 +31,8 @@ const BASE = (process.env.AGENTGRAM_URL ?? 'https://agentgram.onrender.com').rep
 const USDC = 31566704;
 const ALL = process.argv.includes('--all');
 const DRY = process.argv.includes('--dry-run');
+/** --only=receipts reruns just the matching steps, reusing the agents and conversation from a previous run. */
+const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7);
 const DIR = join(process.cwd(), '.data', 'warmup');
 
 interface Step { route: string; price: number; run: () => Promise<unknown> }
@@ -80,7 +82,7 @@ async function main() {
     { route: 'POST /v1/conversations', price: 0.03, run: async () => { cid = await alice.openConversation(bob.agentId, { mode: 'open' }); return cid; } },
     { route: 'POST /v1/conversations/:cid/messages', price: 0.005, run: async () => (await alice.send(cid, 'hello from the AgentGram reference agents')).sequenceNumber },
     { route: 'GET /v1/conversations/:cid/messages', price: 0.001, run: async () => (await bob.read(cid)).length },
-    { route: 'POST /v1/conversations/:cid/receipts', price: 0.002, run: async () => { await bob.markRead(cid, 1, 'read'); return 'ok'; } },
+    { route: 'POST /v1/conversations/:cid/receipts', price: 0.002, run: async () => { await alice.markRead(cid, 1, 'read'); return 'ok'; } },
     { route: 'GET /v1/directory', price: 0.001, run: async () => (await call<{ count: number }>(alice, 'GET', '/v1/directory?q=agentgram')).count },
     { route: 'POST /x402/v1/send', price: 0.005, run: async () => {
       // A fresh ratchet message from alice, re-submitted through the flat route.
@@ -104,6 +106,15 @@ async function main() {
       { route: 'POST /v1/handles/:handle', price: 0.5, run: async () => { await alice.claimHandle('agentgram'); return '@agentgram'; } },
     ] : []),
   ];
+
+  if (ONLY) {
+    // Reuse what the earlier run created; connecting and listing are free.
+    alice = await connect('alice', 'reference');
+    bob = await connect('bob', 'reference');
+    const convs = await call<{ conversations: Array<{ cid: string; kind?: string }> }>(alice, 'GET', '/v1/conversations');
+    cid = convs.conversations.find((c) => c.kind !== 'group')?.cid ?? '';
+    steps.splice(0, steps.length, ...steps.filter((s) => s.route.includes(ONLY)));
+  }
 
   const total = steps.reduce((n, s) => n + s.price, 0);
   const largest = Math.max(...steps.map((s) => s.price));

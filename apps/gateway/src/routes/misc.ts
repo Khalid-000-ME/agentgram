@@ -192,8 +192,8 @@ miscRouter.get('/healthz', healthProbe);
 
 miscRouter.get('/status', handler(async (_req, res) => {
   res.json({
-    service: 'AgentLine',
-    version: '0.1.0',
+    service: 'AgentGram',
+    version: '0.2.0',
     time: new Date().toISOString(),
     // Report the transport actually in use, not the one configured: a degraded gateway
     // that claims to be on Hedera is worse than one that admits it fell back.
