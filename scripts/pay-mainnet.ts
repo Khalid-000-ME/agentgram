@@ -22,7 +22,7 @@ import { redact, signerFromPhrase } from './lib/avm-signer.ts';
 
 /** Must match what the facilitator advertises on GET /supported, not the truncated SDK constant. */
 const MAINNET = 'algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=' as const;
-const BASE = (process.env.AGENTGRAM_URL ?? 'https://agentgram.onrender.com').replace(/\/$/, '');
+const BASE = (process.env.AGENTEGRAM_URL ?? 'https://agentgram.onrender.com').replace(/\/$/, '');
 
 const ROUTES: Record<string, { path: string; method: string; body?: unknown; price: string }> = {
   updates:   { path: '/x402/v1/updates',   method: 'GET',  price: '$0.01' },

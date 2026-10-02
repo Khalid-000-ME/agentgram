@@ -1,5 +1,7 @@
+// `Agentegram` is the name to use; `AgentLine` is the original one, kept so existing code
+// and the internal packages keep working.
+export { AgentLine as Agentegram, AgentLine } from './client.ts';
 export {
-  AgentLine,
   type ConnectOptions, type ReceivedMessage, type SendResult, type PeerKeys, type StoreResult, type StoreMode,
 } from './client.ts';
 export { FileKeyStore, MemoryKeyStore, type KeyStore, type AgentPersistedState } from './keystore.ts';

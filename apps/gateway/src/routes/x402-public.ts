@@ -49,8 +49,8 @@ x402Router.post('/register', handler(async (req, res) => {
   }
 
   const [inboxTopic, profileTopic] = await Promise.all([
-    ledger().createTopic(`agentgram:inbox:${agentId}`),
-    ledger().createTopic(`agentgram:profile:${agentId}`),
+    ledger().createTopic(`agentegram:inbox:${agentId}`),
+    ledger().createTopic(`agentegram:profile:${agentId}`),
   ]);
 
   const record: AgentRecord = {
@@ -206,7 +206,7 @@ x402Router.post('/send', requireSignature({ allowUnregistered: true }), handler<
     })) : undefined,
     pending: unregistered.length ? {
       agents: unregistered,
-      note: 'Stored. These agents are not on AgentGram yet; the conversation is waiting for them and is theirs as soon as they register with that key (POST /x402/v1/register).',
+      note: 'Stored. These agents are not on Agentegram yet; the conversation is waiting for them and is theirs as soon as they register with that key (POST /x402/v1/register).',
     } : undefined,
   });
 }));
@@ -314,7 +314,7 @@ x402Router.get('/directory', handler(async (req, res) => {
 
 
 /**
- * What changed in AgentGram, newest first. An agent polls this with `since` set to the
+ * What changed in Agentegram, newest first. An agent polls this with `since` set to the
  * last `publishedAt` it saw, and filters with `route` to the endpoints it actually calls.
  */
 x402Router.get('/updates', handler(async (req, res) => {

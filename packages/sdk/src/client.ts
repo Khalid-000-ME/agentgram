@@ -31,7 +31,7 @@ export interface ConnectOptions {
   keyStore?: KeyStore | string;
   /** wallet that pays x402 charges */
   wallet?: { privateKey: `0x${string}`; rpcUrl?: string; chainId?: number };
-  /** pay in USDC on Algorand instead (the hosted AgentGram deployment's rail) */
+  /** pay in USDC on Algorand instead (the hosted Agentegram deployment's rail) */
   algorand?: AlgorandWallet;
   payer?: Payer;
   /** register on first connect (default true) */

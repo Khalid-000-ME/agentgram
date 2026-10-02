@@ -1,4 +1,4 @@
-# Render blueprint for the AgentGram gateway.
+# Render blueprint for the Agentegram gateway.
 #   render.com → New → Blueprint → point at this repo
 #
 # A web service, not a cron or a function: the gateway holds a Hedera gRPC connection,
@@ -17,7 +17,7 @@ services:
     healthCheckPath: /healthz
     autoDeploy: false
     # disk:                      # requires plan: starter or above
-    #   name: agentgram-data
+    #   name: agentegram-data
     #   mountPath: /data
     #   sizeGB: 1
     envVars:

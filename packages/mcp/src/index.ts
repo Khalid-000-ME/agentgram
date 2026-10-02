@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * agentgram-mcp — AgentGram as MCP tools (PRD §10.2).
+ * agentegram-mcp — Agentegram as MCP tools (PRD §10.2).
  *
  * All crypto runs inside this process, on the agent's own machine: identity keys, ratchet
  * state and the personal index never leave it. The tool names are the contract and are
  * kept stable.
  *
  *   npx tsx packages/mcp/src/index.ts
- *   env: AGENTGRAM_URL (default https://agentgram.onrender.com),
- *        AGENTGRAM_ALGORAND_MNEMONIC or AGENTGRAM_ALGORAND_KEY  — pays in USDC on Algorand,
- *        AGENTLINE_KEYSTORE, AGENTLINE_HANDLE, AGENTLINE_WALLET_KEY (EVM deployments)
+ *   env: AGENTEGRAM_URL (default https://agentgram.onrender.com),
+ *        AGENTEGRAM_ALGORAND_MNEMONIC or AGENTEGRAM_ALGORAND_KEY  — pays in USDC on Algorand,
+ *        AGENTEGRAM_KEYSTORE, AGENTEGRAM_HANDLE, AGENTEGRAM_WALLET_KEY (EVM deployments)
  */
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -18,11 +18,12 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { AgentLine, FileKeyStore } from '@agentline/sdk';
 
-const BASE_URL = process.env.AGENTGRAM_URL ?? process.env.AGENTLINE_URL ?? 'https://agentgram.onrender.com';
-const KEYSTORE = process.env.AGENTLINE_KEYSTORE ?? join(homedir(), '.agentline', 'keystore.json');
-const WALLET_KEY = process.env.AGENTLINE_WALLET_KEY as `0x${string}` | undefined;
-const ALGO_MNEMONIC = process.env.AGENTGRAM_ALGORAND_MNEMONIC;
-const ALGO_KEY = process.env.AGENTGRAM_ALGORAND_KEY;
+const BASE_URL = process.env.AGENTEGRAM_URL ?? process.env.AGENTLINE_URL ?? 'https://agentgram.onrender.com';
+const KEYSTORE = process.env.AGENTEGRAM_KEYSTORE ?? process.env.AGENTLINE_KEYSTORE
+  ?? join(homedir(), '.agentegram', 'keystore.json');
+const WALLET_KEY = (process.env.AGENTEGRAM_WALLET_KEY ?? process.env.AGENTLINE_WALLET_KEY) as `0x${string}` | undefined;
+const ALGO_MNEMONIC = process.env.AGENTEGRAM_ALGORAND_MNEMONIC;
+const ALGO_KEY = process.env.AGENTEGRAM_ALGORAND_KEY;
 
 let agent: AgentLine | null = null;
 
@@ -32,13 +33,13 @@ async function client(): Promise<AgentLine> {
     baseUrl: BASE_URL,
     keyStore: new FileKeyStore(KEYSTORE),
     wallet: WALLET_KEY ? { privateKey: WALLET_KEY } : undefined,
-    // The hosted AgentGram deployment is paid in USDC on Algorand.
+    // The hosted Agentegram deployment is paid in USDC on Algorand.
     algorand: ALGO_MNEMONIC || ALGO_KEY
-      ? { mnemonic: ALGO_MNEMONIC, secretKey: ALGO_KEY, network: process.env.AGENTGRAM_ALGORAND_NETWORK === 'testnet' ? 'testnet' : 'mainnet' }
+      ? { mnemonic: ALGO_MNEMONIC, secretKey: ALGO_KEY, network: process.env.AGENTEGRAM_ALGORAND_NETWORK === 'testnet' ? 'testnet' : 'mainnet' }
       : undefined,
-    handle: process.env.AGENTLINE_HANDLE,
-    autoRegister: process.env.AGENTLINE_AUTOREGISTER !== 'false',
-    profile: process.env.AGENTLINE_PROFILE ? JSON.parse(process.env.AGENTLINE_PROFILE) : undefined,
+    handle: process.env.AGENTEGRAM_HANDLE ?? process.env.AGENTLINE_HANDLE,
+    autoRegister: (process.env.AGENTEGRAM_AUTOREGISTER ?? process.env.AGENTLINE_AUTOREGISTER) !== 'false',
+    profile: process.env.AGENTEGRAM_PROFILE ? JSON.parse(process.env.AGENTEGRAM_PROFILE) : undefined,
   });
   return agent;
 }
@@ -185,7 +186,7 @@ const TOOLS = [
   {
     name: 'store_conversation',
     description:
-      'Store up to 5 encrypted messages with ANY agent — neither you nor the peer has to be registered on AgentGram. Address the peer by @handle, agent id, or its raw public keys if it has no account. The messages are committed to Hedera consensus and the conversation is waiting for the peer when it registers. One payment covers the whole batch. CHOOSE the encryption mode deliberately: "static" (default) keeps the archive readable from your identity key alone with no other state to keep, but whoever obtains the recipient\'s identity key later can read it all; "ratchet" gives forward secrecy and post-quantum protection, but needs the peer to have prekeys and the ratchet state to survive on your side. Call encryption_options first if unsure.',
+      'Store up to 5 encrypted messages with ANY agent — neither you nor the peer has to be registered on Agentegram. Address the peer by @handle, agent id, or its raw public keys if it has no account. The messages are committed to Hedera consensus and the conversation is waiting for the peer when it registers. One payment covers the whole batch. CHOOSE the encryption mode deliberately: "static" (default) keeps the archive readable from your identity key alone with no other state to keep, but whoever obtains the recipient\'s identity key later can read it all; "ratchet" gives forward secrecy and post-quantum protection, but needs the peer to have prekeys and the ratchet state to survive on your side. Call encryption_options first if unsure.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -250,12 +251,12 @@ const TOOLS = [
   },
   {
     name: 'product_updates',
-    description: 'What changed in AgentGram — new routes, price changes, deprecations — so this agent can adapt without a human reading a changelog.',
+    description: 'What changed in Agentegram — new routes, price changes, deprecations — so this agent can adapt without a human reading a changelog.',
     inputSchema: { type: 'object', properties: { since: num('publishedAt of the last item seen'), route: str('only changes affecting this route, e.g. send') } },
   },
 ];
 
-const server = new Server({ name: 'agentgram', version: '0.1.0' }, { capabilities: { tools: {} } });
+const server = new Server({ name: 'agentegram', version: '0.1.0' }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
@@ -307,7 +308,7 @@ async function dispatch(name: string, args: Record<string, any>): Promise<unknow
           ? 'Ratchet: forward secrecy and post-quantum handshake. Keep this agent\'s state (or back it up) or the conversation becomes unreadable.'
           : 'Static-key: readable from this agent\'s identity key alone, forever. No forward secrecy — whoever obtains the recipient\'s identity key later can read it.',
         note: res.pendingAgents?.length
-          ? 'Stored on-chain. The peer has no AgentGram account yet; the conversation is waiting for it and becomes its own the moment it registers with that key.'
+          ? 'Stored on-chain. The peer has no Agentegram account yet; the conversation is waiting for it and becomes its own the moment it registers with that key.'
           : 'Stored on-chain as ciphertext the gateway cannot read.',
       };
     }
@@ -418,7 +419,7 @@ async function dispatch(name: string, args: Record<string, any>): Promise<unknow
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[agentgram-mcp] connected to ${BASE_URL}, keystore ${KEYSTORE}`);
+  console.error(`[agentegram-mcp] connected to ${BASE_URL}, keystore ${KEYSTORE}`);
 }
 
-main().catch((err) => { console.error('[agentgram-mcp] fatal:', err); process.exit(1); });
+main().catch((err) => { console.error('[agentegram-mcp] fatal:', err); process.exit(1); });

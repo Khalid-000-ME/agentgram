@@ -1,5 +1,5 @@
 /**
- * Paying AgentGram on Algorand (x402 v2, USDC ASA 31566704, fees sponsored by the facilitator).
+ * Paying Agentegram on Algorand (x402 v2, USDC ASA 31566704, fees sponsored by the facilitator).
  *
  * The EVM payer in payer.ts speaks x402 v1. The Algorand rail speaks v2, whose 402 carries
  * its requirements in a PAYMENT-REQUIRED header and expects a signed transaction group back,
@@ -40,7 +40,7 @@ export function algorandSigner(wallet: AlgorandWallet): ClientAvmSigner {
   throw new Error('algorand wallet needs one of: mnemonic, secretKey, signer');
 }
 
-/** A `fetch` that pays any AgentGram 402 in USDC on Algorand and retries. */
+/** A `fetch` that pays any Agentegram 402 in USDC on Algorand and retries. */
 export function algorandFetch(wallet: AlgorandWallet, base: typeof fetch = fetch): { fetch: typeof fetch; address: string } {
   const signer = algorandSigner(wallet);
   const client = new x402Client();

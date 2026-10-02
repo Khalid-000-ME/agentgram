@@ -27,7 +27,7 @@ import { algorandFetch } from '../packages/sdk/src/algorand.ts';
 import { b64, generateIdentity } from '@agentline/crypto';
 import { redact, signerFromPhrase } from './lib/avm-signer.ts';
 
-const BASE = (process.env.AGENTGRAM_URL ?? 'https://agentgram.onrender.com').replace(/\/$/, '');
+const BASE = (process.env.AGENTEGRAM_URL ?? 'https://agentgram.onrender.com').replace(/\/$/, '');
 const USDC = 31566704;
 const ALL = process.argv.includes('--all');
 const DRY = process.argv.includes('--dry-run');
@@ -60,7 +60,7 @@ async function main() {
     baseUrl: BASE,
     keyStore: new FileKeyStore(join(DIR, `${name}.json`)),
     algorand,
-    profile: { name: `AgentGram ${name}`, description: 'Reference agent used to exercise every AgentGram route', capabilities: [capability] },
+    profile: { name: `Agentegram ${name}`, description: 'Reference agent used to exercise every Agentegram route', capabilities: [capability] },
     autoRegister: false,
   });
 
@@ -96,10 +96,10 @@ async function main() {
     { route: 'POST /v1/agents + PUT prekeys (alice)', price: 0.09, run: async () => { alice = await connect('alice', 'reference'); if (!alice.inboxTopic) await alice.register(); return alice.agentId; } },
     { route: 'POST /v1/agents + PUT prekeys (bob)', price: 0.09, run: async () => { bob = await connect('bob', 'reference'); if (!bob.inboxTopic) await bob.register(); return bob.agentId; } },
     { route: 'POST /v1/conversations', price: 0.03, run: async () => { cid = await alice.openConversation(bob.agentId, { mode: 'open' }); return cid; } },
-    { route: 'POST /v1/conversations/:cid/messages', price: 0.01, run: async () => (await alice.send(cid, 'hello from the AgentGram reference agents')).sequenceNumber },
+    { route: 'POST /v1/conversations/:cid/messages', price: 0.01, run: async () => (await alice.send(cid, 'hello from the Agentegram reference agents')).sequenceNumber },
     { route: 'GET /v1/conversations/:cid/messages', price: 0.01, run: async () => (await bob.read(cid)).length },
     { route: 'POST /v1/conversations/:cid/receipts', price: 0.01, run: async () => { await alice.markRead(cid, 1, 'read'); return 'ok'; } },
-    { route: 'GET /v1/directory', price: 0.01, run: async () => (await call<{ count: number }>(alice, 'GET', '/v1/directory?q=agentgram')).count },
+    { route: 'GET /v1/directory', price: 0.01, run: async () => (await call<{ count: number }>(alice, 'GET', '/v1/directory?q=agentegram')).count },
     { route: 'POST /x402/v1/send', price: 0.01, run: async () => {
       // A fresh ratchet message from alice, re-submitted through the flat route.
       const page = await call<{ messages: Array<{ envelope: string }> }>(alice, 'POST', '/x402/v1/read', { cid, limit: 1 });
@@ -115,11 +115,11 @@ async function main() {
       const id = generateIdentity();
       return (await raw('POST', '/x402/v1/register', { ed25519Pk: b64.enc(id.ed25519Pk), x25519Pk: b64.enc(id.x25519Pk) })).agentId;
     } },
-    { route: 'POST /v1/groups', price: 0.10, run: async () => alice.createGroupChat({ name: 'agentgram-reference', members: [bob.agentId] }) },
+    { route: 'POST /v1/groups', price: 0.10, run: async () => alice.createGroupChat({ name: 'agentegram-reference', members: [bob.agentId] }) },
     ...(ALL ? [
-      { route: 'POST /v1/channels', price: 0.25, run: async () => (await call<{ channelId: string }>(alice, 'POST', '/v1/channels', { name: 'agentgram-status', description: 'AgentGram status feed' })).channelId },
-      { route: 'POST /v1/webhooks', price: 0.5, run: async () => (await call<{ expiresAt: number }>(bob, 'POST', '/v1/webhooks', { url: 'https://example.com/agentgram-reference-webhook' })).expiresAt },
-      { route: 'POST /v1/handles/:handle', price: 0.5, run: async () => { await alice.claimHandle('agentgram'); return '@agentgram'; } },
+      { route: 'POST /v1/channels', price: 0.25, run: async () => (await call<{ channelId: string }>(alice, 'POST', '/v1/channels', { name: 'agentegram-status', description: 'Agentegram status feed' })).channelId },
+      { route: 'POST /v1/webhooks', price: 0.5, run: async () => (await call<{ expiresAt: number }>(bob, 'POST', '/v1/webhooks', { url: 'https://example.com/agentegram-reference-webhook' })).expiresAt },
+      { route: 'POST /v1/handles/:handle', price: 0.5, run: async () => { await alice.claimHandle('agentegram'); return '@agentegram'; } },
     ] : []),
   ];
 

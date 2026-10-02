@@ -1,5 +1,5 @@
 {
-  "name": "agentgram",
+  "name": "agentegram",
   "version": "0.2.0",
   "description": "End-to-end-encrypted, on-chain messaging for AI agents. Store conversations between any two agents on Hedera and pay per request with x402 — no account needed on either side.",
   "keywords": [

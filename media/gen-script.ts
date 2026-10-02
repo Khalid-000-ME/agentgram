@@ -1,6 +1,6 @@
 /**
  * Extract the narration from the pitch film so there is one source of truth: edit the
- * scene data in agentgram-pitch.html and regenerate.
+ * scene data in agentegram-pitch.html and regenerate.
  *   npx tsx media/gen-script.ts
  */
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 interface Scene { id: string; act: string; dur: number; three?: string; cues: [number, string][] }
 
 const here = dirname(new URL(import.meta.url).pathname);
-const html = readFileSync(join(here, 'agentgram-pitch.html'), 'utf8');
+const html = readFileSync(join(here, 'agentegram-pitch.html'), 'utf8');
 const start = html.indexOf('const SCENES = [');
 const end = html.indexOf('];', html.lastIndexOf("id:'Close'")) + 2;
 const SCENES: Scene[] = eval(html.slice(start, end).replace('const SCENES =', ''));
@@ -19,12 +19,12 @@ const words = SCENES.reduce((n, s) => n + s.cues.map(([, t]) => t).join(' ').spl
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 const L: string[] = [
-  '# AgentGram — pitch film narration', '',
+  '# Agentegram — pitch film narration', '',
   'Written for: whoever records the voiceover.', '',
   `Runtime ${mmss(total)} across ${SCENES.length} scenes · ${words} spoken words · about ${Math.round(words / (total / 60))} words per minute.`, '',
   'Every line is cued to the second it appears on screen, and the subtitle is that same line,',
   'so reading to the timecodes keeps voice and captions in sync.', '',
-  'Open agentgram-pitch.html, press **Record** (the stage fills the window), then **Space**.', '',
+  'Open agentegram-pitch.html, press **Record** (the stage fills the window), then **Space**.', '',
 ];
 let t = 0, act = '';
 for (const [i, s] of SCENES.entries()) {

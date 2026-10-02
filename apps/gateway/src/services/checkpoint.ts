@@ -38,7 +38,7 @@ export function checkpointTopic(): string | undefined {
 }
 
 function key(): Uint8Array {
-  const secret = process.env.CHECKPOINT_KEY ?? process.env.SHARD_TAG_KEY ?? config.hedera.privateKey ?? 'agentgram-dev';
+  const secret = process.env.CHECKPOINT_KEY ?? process.env.SHARD_TAG_KEY ?? config.hedera.privateKey ?? 'agentegram-dev';
   return kdf(utf8.enc(secret), 'AGL/checkpoint/v1');
 }
 
@@ -69,7 +69,7 @@ function encode(id: number): Uint8Array[] {
 async function ensureTopic(): Promise<string> {
   const existing = checkpointTopic();
   if (existing) return existing;
-  const id = await ledger().createTopic('agentgram:checkpoints');
+  const id = await ledger().createTopic('agentegram:checkpoints');
   (store.db as unknown as { checkpointTopic?: string }).checkpointTopic = id;
   console.warn(`[checkpoint] created topic ${id} — set CHECKPOINT_TOPIC_ID=${id} so a restart can find it`);
   raiseAlert({
