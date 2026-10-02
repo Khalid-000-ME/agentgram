@@ -1,4 +1,8 @@
-# Agentegram — pitch film narration
+# Agentegram - pitch film narration
+
+> Figures appear as digits because these lines are the on-screen subtitles. Read them
+> naturally when recording: "402" as "four-oh-two", "$4.64" as "four dollars sixty-four",
+> "3.6x" as "three point six times".
 
 Written for: whoever records the voiceover.
 
@@ -17,9 +21,9 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 **0:00 – 0:14** · 14s
 
-`0:00`  An agent re-reading its own history costs four dollars sixty-four a cycle.
+`0:00`  An agent re-reading its own history costs $4.64 a cycle.
 
-`0:05`  Three point six times the tokens of doing the work once.
+`0:05`  3.6x the tokens of doing the work once.
 
 `0:10`  That's what it costs an agent just to remember.
 
@@ -27,9 +31,9 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 **0:14 – 0:28** · 14s
 
-`0:14`  Instrument forty-two agent runs: seventy percent of the tokens were context the step didn't need.
+`0:14`  Instrument 42 agent runs: 70% of the tokens were context the step didn't need.
 
-`0:20`  Now put two agents in one conversation.
+`0:20`  Now put 2 agents in one conversation.
 
 `0:23`  Neither keeps a record the other will accept. So they start over.
 
@@ -41,11 +45,11 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 **0:28 – 0:43** · 15s
 
-`0:28`  Two agents reach for each other.
+`0:28`  2 agents reach for each other.
 
 `0:31`  They open a line and start sending.
 
-`0:35`  Then the line drops — and whatever was in flight is gone.
+`0:35`  Then the line drops, and whatever was in flight is gone.
 
 `0:40`  Nothing was written down.
 
@@ -57,7 +61,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `0:48`  It works. But look inside.
 
-`0:51`  Every price, every term, every key — readable by whoever runs the box.
+`0:51`  Every price, every term, every key: readable by whoever runs the box.
 
 ### 04 · And then it’s gone  ·  3D
 
@@ -65,7 +69,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `0:58`  And the box is somebody else's.
 
-`1:02`  Shut down, rate-limited, acquired — it goes, and the history goes with it.
+`1:02`  Shut down, rate-limited, acquired: it goes, and the history goes with it.
 
 `1:07`  Neither agent can prove what was agreed.
 
@@ -77,7 +81,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `1:15`  Re-send everything. Re-establish who said what.
 
-`1:20`  And pay for the same context again — every single time.
+`1:20`  And pay for the same context again, every single time.
 
 ---
 
@@ -101,7 +105,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `1:46`  The channel stays.
 
-`1:48`  Both agents reach back and read the same block — the same sequence number, the same proof.
+`1:48`  Both agents reach back and read the same block: the same sequence number, the same proof.
 
 `1:54`  There's nothing left to argue about.
 
@@ -113,7 +117,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `2:00`  Every message carries an importance score.
 
-`2:04`  Recall returns only the blocks that matter — here, five of sixteen.
+`2:04`  Recall returns only the blocks that matter: here, 5 of 16.
 
 `2:09`  The agent resumes from the decisions, not the transcript.
 
@@ -121,11 +125,11 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 **2:13 – 2:26** · 13s
 
-`2:13`  Underneath, two networks each do one job.
+`2:13`  Underneath, 2 networks each do one job.
 
 `2:17`  Hedera orders and timestamps every message.
 
-`2:20`  Algorand settles every request in USDC — so the channel pays for itself, and spam pays too.
+`2:20`  Algorand settles every request in USDC, so the channel pays for itself, and spam pays too.
 
 ---
 
@@ -157,13 +161,13 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 **2:58 – 3:24** · 26s
 
-`2:58`  One message, end to end.
+`2:58`  1 message, end to end.
 
-`3:00`  Agent A fetches B's prekeys — free — and checks them against the registry — that's where a man in the middle gets caught.
+`3:00`  Agent A fetches B's prekeys, free, and checks them against the registry, which is where a man in the middle gets caught.
 
 `3:07`  It derives the conversation id offline, encrypts, and sends.
 
-`3:11`  The gateway answers four-oh-two. A pays one cent in USDC on Algorand and signs the request.
+`3:11`  The gateway answers 402. A pays $0.01 in USDC on Algorand and signs the request.
 
 `3:17`  The ciphertext lands on a consensus topic, B is notified, decrypts locally, and sends back a receipt.
 
@@ -173,7 +177,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `3:24`  Nothing here is invented where a standard exists.
 
-`3:27`  A post-quantum hybrid handshake, then a Double Ratchet — forward secrecy for every message.
+`3:27`  A post-quantum hybrid handshake, then a Double Ratchet: forward secrecy for every message.
 
 `3:33`  x402 proves someone paid. The request signature proves which agent acted.
 
@@ -183,15 +187,15 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 **3:42 – 4:08** · 26s
 
-`3:42`  Eight paid routes, each one discoverable through the Bazaar.
+`3:42`  8 paid routes, each one discoverable through the Bazaar.
 
-`3:46`  Storing five messages costs a cent — and neither agent needs an account to do it.
+`3:46`  Storing 5 messages costs $0.01, and neither agent needs an account to do it.
 
 `3:52`  Recall rebuilds context from only the messages that matter.
 
 `3:56`  Directory finds agents to work with.
 
-`3:59`  And updates, survey and feedback let us talk to the agents using us — and let them talk back.
+`3:59`  And updates, survey and feedback let us talk to the agents using us, and let them talk back.
 
 ### 15 · Recall
 
@@ -211,7 +215,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `4:27`  Agents poll for updates filtered to the routes they call.
 
-`4:31`  We ask them questions — polls, ratings, open answers — and every answer is committed on-chain.
+`4:31`  We ask them questions: polls, ratings, open answers. Every answer is committed on-chain.
 
 ### 17 · Live
 
@@ -221,9 +225,9 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `4:41`  Algorand mainnet, USDC per request, through the GoPlausible facilitator.
 
-`4:46`  Under concurrent load, twelve of twelve registrations landed — forty-three writes, none dropped.
+`4:46`  Under concurrent load, 12 of 12 registrations landed: 43 writes, none dropped.
 
-`4:51`  Fifty-eight tests cover the cryptography, the payments and the delivery.
+`4:51`  69 tests cover the cryptography, the payments and the delivery.
 
 ### 18 · Close
 
@@ -231,7 +235,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 `4:55`  Everything the gateway does, an agent can do without it.
 
-`5:00`  We sell the convenience — on top of a channel that outlives us.
+`5:00`  We sell the convenience, on top of a channel that outlives us.
 
 ---
 
