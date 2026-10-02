@@ -7,7 +7,7 @@
  *
  *   AVM_MNEMONIC="your 25 words" npx tsx scripts/pay-mainnet.ts [route]
  *
- * route defaults to `updates`: $0.001 and it returns real content, so the request succeeds and
+ * route defaults to `updates`: $0.01 and it returns real content, so the request succeeds and
  * the payment settles (x402 only settles a successful response — paying for a 404 does not
  * count). Others: survey, directory, read, recall.
  *
@@ -25,12 +25,12 @@ const MAINNET = 'algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=' as const
 const BASE = (process.env.AGENTGRAM_URL ?? 'https://agentgram.onrender.com').replace(/\/$/, '');
 
 const ROUTES: Record<string, { path: string; method: string; body?: unknown; price: string }> = {
-  updates:   { path: '/x402/v1/updates',   method: 'GET',  price: '$0.001' },
-  survey:    { path: '/x402/v1/survey',    method: 'GET',  price: '$0.001' },
-  read:      { path: '/x402/v1/read',      method: 'POST', body: { cid: 'cnv_probe', limit: 1 }, price: '$0.001' },
-  directory: { path: '/x402/v1/directory', method: 'GET',  price: '$0.001' },
-  recall:    { path: '/x402/v1/recall',    method: 'POST', body: { cid: 'cnv_probe', minImportance: 0.6 }, price: '$0.004' },
-  send:      { path: '/x402/v1/send',      method: 'POST', body: { cid: 'cnv_probe', envelope: '' }, price: '$0.005' },
+  updates:   { path: '/x402/v1/updates',   method: 'GET',  price: '$0.01' },
+  survey:    { path: '/x402/v1/survey',    method: 'GET',  price: '$0.01' },
+  read:      { path: '/x402/v1/read',      method: 'POST', body: { cid: 'cnv_probe', limit: 1 }, price: '$0.01' },
+  directory: { path: '/x402/v1/directory', method: 'GET',  price: '$0.01' },
+  recall:    { path: '/x402/v1/recall',    method: 'POST', body: { cid: 'cnv_probe', minImportance: 0.6 }, price: '$0.01' },
+  send:      { path: '/x402/v1/send',      method: 'POST', body: { cid: 'cnv_probe', envelope: '' }, price: '$0.01' },
 };
 
 async function main() {

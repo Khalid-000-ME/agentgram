@@ -80,21 +80,21 @@ async function main() {
     { route: 'POST /v1/agents + PUT prekeys (alice)', price: 0.09, run: async () => { alice = await connect('alice', 'reference'); if (!alice.inboxTopic) await alice.register(); return alice.agentId; } },
     { route: 'POST /v1/agents + PUT prekeys (bob)', price: 0.09, run: async () => { bob = await connect('bob', 'reference'); if (!bob.inboxTopic) await bob.register(); return bob.agentId; } },
     { route: 'POST /v1/conversations', price: 0.03, run: async () => { cid = await alice.openConversation(bob.agentId, { mode: 'open' }); return cid; } },
-    { route: 'POST /v1/conversations/:cid/messages', price: 0.005, run: async () => (await alice.send(cid, 'hello from the AgentGram reference agents')).sequenceNumber },
-    { route: 'GET /v1/conversations/:cid/messages', price: 0.001, run: async () => (await bob.read(cid)).length },
-    { route: 'POST /v1/conversations/:cid/receipts', price: 0.002, run: async () => { await alice.markRead(cid, 1, 'read'); return 'ok'; } },
-    { route: 'GET /v1/directory', price: 0.001, run: async () => (await call<{ count: number }>(alice, 'GET', '/v1/directory?q=agentgram')).count },
-    { route: 'POST /x402/v1/send', price: 0.005, run: async () => {
+    { route: 'POST /v1/conversations/:cid/messages', price: 0.01, run: async () => (await alice.send(cid, 'hello from the AgentGram reference agents')).sequenceNumber },
+    { route: 'GET /v1/conversations/:cid/messages', price: 0.01, run: async () => (await bob.read(cid)).length },
+    { route: 'POST /v1/conversations/:cid/receipts', price: 0.01, run: async () => { await alice.markRead(cid, 1, 'read'); return 'ok'; } },
+    { route: 'GET /v1/directory', price: 0.01, run: async () => (await call<{ count: number }>(alice, 'GET', '/v1/directory?q=agentgram')).count },
+    { route: 'POST /x402/v1/send', price: 0.01, run: async () => {
       // A fresh ratchet message from alice, re-submitted through the flat route.
       const page = await call<{ messages: Array<{ envelope: string }> }>(alice, 'POST', '/x402/v1/read', { cid, limit: 1 });
       const envelope = page.messages[0]?.envelope;
       if (!envelope) throw new Error('no envelope to send');
       return (await call<{ sequenceNumber: number }>(alice, 'POST', '/x402/v1/send', { cid, envelope, importance: 0.9 })).sequenceNumber;
     } },
-    { route: 'POST /x402/v1/read', price: 0.001, run: async () => (await raw('POST', '/x402/v1/read', { cid })).count },
-    { route: 'POST /x402/v1/recall', price: 0.004, run: async () => (await raw('POST', '/x402/v1/recall', { cid, minImportance: 0.5 })).returned },
-    { route: 'GET /x402/v1/directory', price: 0.001, run: async () => (await raw('GET', '/x402/v1/directory?capability=reference')).count },
-    { route: 'POST /x402/v1/feedback', price: 0.001, run: async () => (await raw('POST', '/x402/v1/feedback', { text: 'Reference agents walked every route successfully.', respondent: alice.agentId })).answerId },
+    { route: 'POST /x402/v1/read', price: 0.01, run: async () => (await raw('POST', '/x402/v1/read', { cid })).count },
+    { route: 'POST /x402/v1/recall', price: 0.01, run: async () => (await raw('POST', '/x402/v1/recall', { cid, minImportance: 0.5 })).returned },
+    { route: 'GET /x402/v1/directory', price: 0.01, run: async () => (await raw('GET', '/x402/v1/directory?capability=reference')).count },
+    { route: 'POST /x402/v1/feedback', price: 0.01, run: async () => (await raw('POST', '/x402/v1/feedback', { text: 'Reference agents walked every route successfully.', respondent: alice.agentId })).answerId },
     { route: 'POST /x402/v1/register', price: 0.08, run: async () => {
       const id = generateIdentity();
       return (await raw('POST', '/x402/v1/register', { ed25519Pk: b64.enc(id.ed25519Pk), x25519Pk: b64.enc(id.x25519Pk) })).agentId;

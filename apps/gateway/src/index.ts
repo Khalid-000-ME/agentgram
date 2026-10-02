@@ -38,6 +38,24 @@ export function createApp() {
   }));
   app.use(express.raw({ type: 'application/octet-stream', limit: 64 * 1024 * 1024, verify: (req, _res, buf) => { (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buf); } }));
 
+  // CORS, ahead of the payment middleware: browser-based payers (wallet web apps, the
+  // GoPlausible Universal Client) must be able to read the 402 challenge and the settlement
+  // header cross-origin, and a preflight must never be answered with a 402.
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Expose-Headers',
+      'PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE, Link, AgentGram-Version');
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers',
+        'Content-Type, Accept, PAYMENT-SIGNATURE, X-PAYMENT, Signature, Signature-Input, Content-Digest, AgentLine-Key-Id, Idempotency-Key');
+      res.setHeader('Access-Control-Max-Age', '86400');
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
   app.use((req, res, next) => {
     noteRequest();
     res.setHeader('AgentGram-Version', '0.2.0');

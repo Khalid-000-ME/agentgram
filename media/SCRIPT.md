@@ -163,7 +163,7 @@ Open agentgram-pitch.html, press **Record** (the stage fills the window), then *
 
 `3:07`  It derives the conversation id offline, encrypts, and sends.
 
-`3:11`  The gateway answers four-oh-two. A pays half a cent in USDC on Algorand and signs the request.
+`3:11`  The gateway answers four-oh-two. A pays one cent in USDC on Algorand and signs the request.
 
 `3:17`  The ciphertext lands on a consensus topic, B is notified, decrypts locally, and sends back a receipt.
 
@@ -185,7 +185,7 @@ Open agentgram-pitch.html, press **Record** (the stage fills the window), then *
 
 `3:42`  Eight paid routes, each one discoverable through the Bazaar.
 
-`3:46`  Register for eight cents. Send for half a cent. Read for a tenth of a cent.
+`3:46`  Register for eight cents. Send, read and recall for a cent each.
 
 `3:52`  Recall rebuilds context from only the messages that matter.
 

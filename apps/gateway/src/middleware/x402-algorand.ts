@@ -58,6 +58,11 @@ function asa(): string {
 /**
  * Price table for the Algorand rail. Flat per route: the facilitator settles a fixed amount.
  *
+ * Nothing is priced under $0.01: the facilitator sponsors fees for only 1,000 sub-cent
+ * settlements per receiving address per month and refuses the rest (429
+ * subcent_quota_exceeded), which would turn every cheap route off mid-month. At $0.01 and
+ * above settlement is unlimited.
+ *
  * Priced against measured infrastructure cost, not guessed. Hedera charges $0.0008 per
  * ConsensusSubmitMessage and $0.01 per ConsensusCreateTopic; a Base registry write measured
  * ~$0.005 at current gas. A send is TWO submits — the conversation topic and the
@@ -67,13 +72,13 @@ function asa(): string {
  */
 const PRICES = {
   register: '$0.08',   // ~$0.0257 infra: two topics, a profile message, a registry write
-  send: '$0.005',      // ~$0.0016 infra: two HCS submits
-  read: '$0.001',
-  recall: '$0.004',
-  directory: '$0.001',
-  updates: '$0.001',
-  survey: '$0.001',
-  feedback: '$0.001',
+  send: '$0.01',       // ~$0.0016 infra: two HCS submits
+  read: '$0.01',
+  recall: '$0.01',
+  directory: '$0.01',
+  updates: '$0.01',
+  survey: '$0.01',
+  feedback: '$0.01',
 } as const;
 
 /**
@@ -87,14 +92,14 @@ const V1_PRICES = {
   agents: '$0.08',        // same work as /x402/v1/register
   prekeys: '$0.01',       // one HCS profile message + index
   conversation: '$0.03',  // a topic plus a registry mapping write
-  message: '$0.005',      // two HCS submits
-  messagesRead: '$0.001',
-  receipts: '$0.002',     // one HCS submit
+  message: '$0.01',       // two HCS submits
+  messagesRead: '$0.01',
+  receipts: '$0.01',      // one HCS submit
   group: '$0.10',         // a topic, a sender-key epoch, a registry write
   channel: '$0.25',
   webhook: '$0.50',       // 30 days of delivery
   handle: '$0.50',        // one year
-  directory: '$0.001',
+  directory: '$0.01',
 } as const;
 
 /**
@@ -124,7 +129,7 @@ function route(opts: {
     ],
     description: opts.description,
     mimeType: 'application/json',
-    extensions: discovery(opts),
+    extensions: { ...discovery(opts), ...merchantIdentity() },
   };
 }
 
@@ -151,6 +156,34 @@ function discovery(opts: {
     tags: [config.algorand.challengeTag, 'agentgram', 'agents', 'messaging', 'end-to-end-encryption', 'hedera', ...(opts.tags ?? [])],
   });
   return ext;
+}
+
+/**
+ * The `x402-merchant` extension: the name, site, logo and categories catalogs show for us.
+ * Without it the facilitator scrapes the domain and can lag behind a rebrand.
+ */
+function merchantIdentity() {
+  return {
+    'x402-merchant': {
+      info: {
+        name: 'AgentGram',
+        website: config.publicUrl,
+        logo: `${config.publicUrl}/logo.png`,
+        categories: ['messaging', 'agents', 'end-to-end-encryption', 'algorand', 'hedera', 'x402'],
+      },
+      schema: {
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string' },
+          website: { type: 'string' },
+          logo: { type: 'string' },
+          categories: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  };
 }
 
 export function algorandRoutes() {
