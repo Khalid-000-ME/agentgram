@@ -20,6 +20,7 @@ import { HTTPFacilitatorClient } from '@x402/core/server';
 import { paymentMiddleware, x402ResourceServer } from '@x402/express';
 import { bazaarResourceServerExtension, declareDiscoveryExtension } from '@x402-avm/extensions';
 import { config } from '../config.ts';
+import { store } from '../lib/store.ts';
 
 export interface AlgorandRailInfo {
   network: string;
@@ -500,6 +501,12 @@ export function algorandPaymentMiddleware(): RequestHandler {
   const server = new x402ResourceServer(facilitator).register(caip2(), new ExactAvmScheme());
   // Enriches every 402 with discovery metadata so the endpoint appears in the Bazaar catalog.
   server.registerExtension(bazaarResourceServerExtension as never);
+  // Count what actually settled, so /v1/status and the console report Algorand revenue too.
+  server.onAfterSettle(async (ctx) => {
+    if (!ctx.result.success) return;
+    store.recordRevenue(BigInt(ctx.requirements.amount));
+    store.save();
+  });
 
   handler = paymentMiddleware(algorandRoutes() as never, server);
   return handler;
