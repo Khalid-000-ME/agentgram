@@ -64,6 +64,22 @@ async function main() {
     autoRegister: false,
   });
 
+  /**
+   * Make sure the service still knows this agent.
+   *
+   * The local keystore remembers an inbox topic, but the service can legitimately have
+   * forgotten the agent — a restart that restored no checkpoint leaves it with an empty
+   * store. Looking it up is free, so check rather than assume, or every later signed call
+   * fails with "unknown signing key".
+   */
+  const ensureRegistered = async (agent: AgentLine, label: string): Promise<boolean> => {
+    const res = await fetch(`${BASE}/v1/agents/${agent.agentId}`);
+    if (res.ok) return false;
+    console.log(`  · ${label} is not known to the service any more — registering again`);
+    await agent.register();
+    return true;
+  };
+
   // Steps share these, filled as the walk proceeds.
   let alice!: AgentLine; let bob!: AgentLine; let cid = '';
   const call = <T>(agent: AgentLine, method: string, path: string, body?: unknown) => agent.request<T>(method, path, body);
@@ -108,12 +124,18 @@ async function main() {
   ];
 
   if (ONLY) {
-    // Reuse what the earlier run created; connecting and listing are free.
+    // Reuse what the earlier run created; connecting and looking agents up are free.
     alice = await connect('alice', 'reference');
     bob = await connect('bob', 'reference');
-    const convs = await call<{ conversations: Array<{ cid: string; kind?: string }> }>(alice, 'GET', '/v1/conversations');
-    cid = convs.conversations.find((c) => c.kind !== 'group')?.cid ?? '';
+    const reRegistered = (await ensureRegistered(alice, 'alice')) || (await ensureRegistered(bob, 'bob'));
+    try {
+      const convs = await call<{ conversations: Array<{ cid: string; kind?: string }> }>(alice, 'GET', '/v1/conversations');
+      cid = convs.conversations.find((c) => c.kind !== 'group')?.cid ?? '';
+    } catch {
+      // Only some steps need a conversation; the ones that do will say so when they run.
+    }
     steps.splice(0, steps.length, ...steps.filter((s) => s.route.includes(ONLY)));
+    if (reRegistered) console.log('  · re-registration cost is on top of the figures below\n');
   }
 
   const total = steps.reduce((n, s) => n + s.price, 0);
