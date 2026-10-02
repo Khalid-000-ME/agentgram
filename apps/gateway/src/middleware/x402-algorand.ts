@@ -102,17 +102,33 @@ function route(opts: {
     ],
     description: opts.description,
     mimeType: 'application/json',
-    extensions: declareDiscoveryExtension({
-      name: opts.name,
-      // The catalog filters on these; the challenge tag has to be here as well as in `extra`.
-      tags: [config.algorand.challengeTag, 'agents', 'messaging', 'encryption'],
-      description: opts.description,
-      ...(opts.input
-        ? { bodyType: 'json', input: opts.input, inputSchema: opts.inputSchema }
-        : {}),
-      output: { example: opts.example },
-    } as never),
+    extensions: discovery(opts),
   };
+}
+
+/**
+ * Bazaar discovery metadata for one route.
+ *
+ * `declareDiscoveryExtension` only takes the input and output shape, but the catalog shows
+ * — and filters on — a name, a description and tags. Those live as plain fields on the
+ * discovery `info`, which the extension's schema permits, so they are added after the
+ * extension is declared. Without them the endpoint is listed but nameless and untagged.
+ */
+function discovery(opts: {
+  name: string; description: string; example: Record<string, unknown>;
+  input?: Record<string, unknown>; inputSchema?: Record<string, unknown>;
+}) {
+  const ext = declareDiscoveryExtension(
+    opts.input
+      ? { bodyType: 'json', input: opts.input, inputSchema: opts.inputSchema, output: { example: opts.example } }
+      : { output: { example: opts.example } },
+  ) as unknown as { bazaar: { info: Record<string, unknown> } };
+  Object.assign(ext.bazaar.info, {
+    name: opts.name,
+    description: opts.description,
+    tags: [config.algorand.challengeTag, 'agents', 'messaging', 'end-to-end-encryption', 'hedera'],
+  });
+  return ext;
 }
 
 export function algorandRoutes() {
