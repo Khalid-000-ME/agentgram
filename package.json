@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AgentLine — x402-paid, end-to-end-encrypted, on-chain messaging hub for autonomous agents",
+  "description": "AgentGram — x402-paid, end-to-end-encrypted, on-chain messaging hub for autonomous agents",
   "engines": {
     "node": ">=22"
   },
@@ -17,7 +17,8 @@
     "hedera:setup": "tsx scripts/setup-hedera.ts",
     "demo": "tsx examples/two-agents-demo.ts",
     "test": "tsx --test test/*.test.ts",
-    "doctor": "tsx scripts/doctor.ts"
+    "doctor": "tsx scripts/doctor.ts",
+    "build:packages": "tsx scripts/build-packages.ts"
   },
   "dependencies": {
     "@algorandfoundation/algokit-utils": "^10.0.0-alpha.46",

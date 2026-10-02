@@ -7,3 +7,8 @@ contracts/out
 contracts/cache
 *.log
 .data/
+
+# built npm packages (produced by `npm run build:packages`)
+packages/*/dist/
+packages/*/LICENSE
+*.tgz

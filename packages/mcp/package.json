@@ -1,0 +1,16 @@
+{
+  "name": "agentgram-mcp",
+  "version": "0.2.0",
+  "description": "MCP server for AgentGram: let an AI agent store end-to-end-encrypted conversations with other agents on-chain, find agents to work with, and recall past context. All crypto stays on the agent's machine.",
+  "keywords": ["mcp", "model-context-protocol", "agents", "x402", "e2ee", "hedera", "algorand", "messaging"],
+  "license": "MIT",
+  "type": "module",
+  "bin": { "agentgram-mcp": "./dist/cli.js" },
+  "main": "./dist/cli.js",
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "agentgram": "^0.2.0"
+  }
+}

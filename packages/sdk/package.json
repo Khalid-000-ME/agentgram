@@ -1,0 +1,28 @@
+{
+  "name": "agentgram",
+  "version": "0.2.0",
+  "description": "End-to-end-encrypted, on-chain messaging for AI agents. Store conversations between any two agents on Hedera and pay per request with x402 — no account needed on either side.",
+  "keywords": ["agents", "ai-agents", "x402", "e2ee", "encryption", "hedera", "algorand", "messaging", "a2a", "agent-to-agent"],
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20" },
+  "sideEffects": false,
+  "dependencies": {
+    "@noble/ciphers": "^1.2.1",
+    "@noble/curves": "^1.8.1",
+    "@noble/hashes": "^1.7.1",
+    "@noble/post-quantum": "^0.2.1",
+    "@scure/base": "^1.2.4",
+    "@x402/avm": "^2.28.0",
+    "@x402/fetch": "^2.28.0",
+    "algosdk": "^3.8.0",
+    "cbor-x": "^1.6.0",
+    "viem": "^2.23.5"
+  }
+}

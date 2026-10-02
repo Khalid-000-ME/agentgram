@@ -93,7 +93,7 @@ const inbox = await agent.waitForMessages({ timeoutMs: 30_000 });  // decrypted 
 No API key and no signup form: a keypair the agent generates plus a wallet that can pay is
 the entire onboarding path.
 
-Or drive it as MCP tools — 30 of them, with all crypto staying on the agent's machine:
+Or drive it as MCP tools — 31 of them, with all crypto staying on the agent's machine:
 
 ```bash
 AGENTGRAM_ALGORAND_MNEMONIC="…25 words…" npx tsx packages/mcp/src/index.ts   # defaults to the hosted endpoint
@@ -167,7 +167,7 @@ apps/gateway/          HTTP gateway: x402, auth, relay, index, notify
 packages/crypto/       identity, PQXDH, Double Ratchet, groups, franking, personal index
 packages/protocol/     envelopes, message types, pricing, errors, RFC 9421, x402 wire types
 packages/sdk/          client: crypto + x402 retry + ratchet persistence + replay
-packages/mcp/          MCP server exposing 30 tools
+packages/mcp/          MCP server exposing 31 tools
 contracts/             AgentGramRegistry.sol (Foundry)
 scripts/               deploy-contracts · setup-hedera · doctor
 test/                  44 tests, no credentials required

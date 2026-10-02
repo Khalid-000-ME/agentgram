@@ -418,7 +418,7 @@ async function dispatch(name: string, args: Record<string, any>): Promise<unknow
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[agentline-mcp] connected to ${BASE_URL}, keystore ${KEYSTORE}`);
+  console.error(`[agentgram-mcp] connected to ${BASE_URL}, keystore ${KEYSTORE}`);
 }
 
-main().catch((err) => { console.error('[agentline-mcp] fatal:', err); process.exit(1); });
+main().catch((err) => { console.error('[agentgram-mcp] fatal:', err); process.exit(1); });
