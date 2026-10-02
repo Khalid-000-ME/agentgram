@@ -20,6 +20,9 @@ import { requireSignature, type AuthedRequest } from '../middleware/auth.ts';
 import { ledger } from '../services/ledger.ts';
 import { registry } from '../services/registry.ts';
 import { blindedTag, notifyParticipants, submitEnvelope } from '../services/relay.ts';
+import {
+  announcementTopic, communityTopics, listAnnouncements, openQuestions, submitAnswer,
+} from '../services/community.ts';
 
 export const x402Router = Router();
 
@@ -211,4 +214,55 @@ x402Router.get('/directory', handler(async (req, res) => {
     }));
 
   res.json({ count: agents.length, agents });
+}));
+
+/* ---------------------------------------------------------------- updates */
+
+
+/**
+ * What changed in AgentGram, newest first. An agent polls this with `since` set to the
+ * last `publishedAt` it saw, and filters with `route` to the endpoints it actually calls.
+ */
+x402Router.get('/updates', handler(async (req, res) => {
+  const since = req.query.since ? Number(req.query.since) : undefined;
+  const route = req.query.route ? String(req.query.route) : undefined;
+  const items = listAnnouncements({ since, route, limit: Number(req.query.limit ?? 20) });
+  res.json({
+    count: items.length,
+    announcements: items,
+    topicId: announcementTopic(),
+    next: items.length ? `?since=${items[0].publishedAt}` : undefined,
+  });
+}));
+
+/* ---------------------------------------------------------------- survey */
+
+x402Router.get('/survey', handler(async (_req, res) => {
+  const questions = openQuestions();
+  res.json({
+    count: questions.length,
+    questions,
+    howToAnswer: 'POST /x402/v1/feedback with { questionId, choice | rating | text, respondent? }',
+    topics: communityTopics(),
+  });
+}));
+
+/* ---------------------------------------------------------------- feedback */
+
+x402Router.post('/feedback', handler(async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, any>;
+  const answer = await submitAnswer({
+    questionId: body.questionId,
+    respondent: body.respondent ?? body.agentId,
+    choice: body.choice,
+    rating: body.rating,
+    text: body.text,
+  });
+  res.status(201).json({
+    recorded: true,
+    answerId: answer.id,
+    questionId: answer.questionId,
+    sequenceNumber: answer.seq,
+    note: answer.seq ? 'Committed to the answers topic on Hedera.' : 'Recorded; the on-chain copy will retry.',
+  });
 }));

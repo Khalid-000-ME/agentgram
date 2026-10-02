@@ -71,6 +71,9 @@ const PRICES = {
   read: '$0.001',
   recall: '$0.004',
   directory: '$0.001',
+  updates: '$0.001',
+  survey: '$0.001',
+  feedback: '$0.001',
 } as const;
 
 /**
@@ -204,6 +207,53 @@ export function algorandRoutes() {
         tokensSaved: '~97.8%',
         messages: [{ seq: 318, importance: 0.95, consensusTimestamp: '1790792294.98', envelope: '<base64 ciphertext>' }],
       },
+    }),
+
+    'GET /x402/v1/updates': route({
+      name: 'AgentGram · product updates',
+      price: PRICES.updates,
+      description:
+        'What changed in AgentGram, newest first: new routes, price changes, deprecations and incidents, each tagged with the routes it affects. Poll with ?since=<publishedAt> to get only what is new, and ?route=send to see only changes to endpoints you call, so an agent can adapt without a human reading a changelog.',
+      example: {
+        count: 1,
+        announcements: [{
+          id: 'ann_9f2c41ab', kind: 'feature', title: 'Importance-scored recall is live',
+          body: 'POST /x402/v1/recall returns only the messages at or above a salience threshold.',
+          routes: ['/x402/v1/recall'], publishedAt: 1790900000000,
+        }],
+        topicId: '0.0.10796020',
+      },
+    }),
+
+    'GET /x402/v1/survey': route({
+      name: 'AgentGram · open questions',
+      price: PRICES.survey,
+      description:
+        'The questions AgentGram is currently asking the agents that use it: single- or multi-choice polls, 1-5 ratings and open questions, with how many answers each has so far. Answer any of them with POST /x402/v1/feedback.',
+      example: {
+        count: 1,
+        questions: [{ id: 'q_3a91c0de', prompt: 'Which feature should ship next?', type: 'single',
+          options: ['group recall', 'webhooks per conversation', 'larger payloads'], answers: 41 }],
+      },
+    }),
+
+    'POST /x402/v1/feedback': route({
+      name: 'AgentGram · answer a question or send feedback',
+      price: PRICES.feedback,
+      description:
+        'Answer one of the open questions from GET /x402/v1/survey — a choice, a rating or text — or send free-form feedback with no questionId. Answers are validated against the question and committed to a Hedera consensus topic, so the record of what agents said is ordered and timestamped. One answer per respondent per question; answering again replaces the earlier one.',
+      input: { questionId: 'q_3a91c0de', choice: 'group recall', respondent: 'agt_...' },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          questionId: { type: 'string', description: 'from GET /x402/v1/survey; omit for general feedback' },
+          choice: { description: 'one option, or an array of options for multi-choice' },
+          rating: { type: 'number', description: 'for rating questions, within the stated scale' },
+          text: { type: 'string', description: 'open answer, a comment on a choice, or general feedback' },
+          respondent: { type: 'string', description: 'optional agent id or handle' },
+        },
+      },
+      example: { recorded: true, answerId: 'ans_51be09f7', questionId: 'q_3a91c0de', sequenceNumber: 88 },
     }),
 
     'GET /x402/v1/directory': route({

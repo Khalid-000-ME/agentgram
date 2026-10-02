@@ -20,6 +20,9 @@ import {
 } from '../services/alerts.ts';
 import { lastHealth, runHealthCheck } from '../services/health.ts';
 import { reset as resetPlayground, sendMessage, state as playgroundState } from '../services/playground.ts';
+import {
+  askQuestion, closeQuestion, generalFeedback, listAnnouncements, publishAnnouncement, results,
+} from '../services/community.ts';
 import { ledger, ledgerDegraded } from '../services/ledger.ts';
 import { registry } from '../services/registry.ts';
 
@@ -294,4 +297,28 @@ adminRouter.post('/e2e', handler(async (_req, res) => {
     });
     res.status(500).json({ ok: false, steps, error: (err as Error).message });
   }
+}));
+
+/* ---------------------------------------------------------------- announcements & surveys */
+
+adminRouter.get('/community', handler(async (_req, res) => {
+  res.json({ announcements: listAnnouncements({ limit: 50 }), questions: results(), feedback: generalFeedback(30) });
+}));
+
+adminRouter.post('/announcements', handler(async (req, res) => {
+  res.status(201).json(await publishAnnouncement(req.body ?? {}));
+}));
+
+adminRouter.post('/questions', handler(async (req, res) => {
+  res.status(201).json(await askQuestion(req.body ?? {}));
+}));
+
+adminRouter.post('/questions/:id/close', handler(async (req, res) => {
+  res.json(await closeQuestion(req.params.id));
+}));
+
+adminRouter.get('/questions/:id/results', handler(async (req, res) => {
+  const [r] = results(req.params.id);
+  if (!r) throw new AgentLineError('not_found', `no question ${req.params.id}`);
+  res.json(r);
 }));
