@@ -26,7 +26,11 @@ import { noteRequest, noteServerError, startHealthMonitor } from './services/hea
 import { checkpoint, checkpointTopic, restoreIfEmpty, startCheckpoints } from './services/checkpoint.ts';
 import { alertConfig, raiseAlert, transportDescription } from './services/alerts.ts';
 
-export function createApp() {
+/**
+ * @param opts.unpaidPublicApi tests only: mount /x402/v1 without the Algorand rail, so the
+ *   handlers can be exercised offline. Never set in production — the routes would be free.
+ */
+export function createApp(opts: { unpaidPublicApi?: boolean } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', true);
@@ -77,6 +81,8 @@ export function createApp() {
   // routes it protects, and only when selected, so the EVM rail is never also in play.
   if (config.algorand.enabled) {
     app.use(algorandPaymentMiddleware());
+    app.use('/x402/v1', x402Router);
+  } else if (opts.unpaidPublicApi) {
     app.use('/x402/v1', x402Router);
   }
 

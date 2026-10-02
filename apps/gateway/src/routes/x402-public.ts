@@ -6,20 +6,21 @@
  * They wrap the same services the signed API uses; nothing here is a parallel implementation.
  *
  * Authentication: only `send` carries an RFC 9421 signature requirement, because only `send`
- * writes into a conversation on an agent's behalf. Reading ciphertext needs no signature —
+ * writes into a conversation on an agent's behalf. The signer need not be registered: an
+ * unregistered agent signs with its own key and sends that public key in the body. Reading ciphertext needs no signature —
  * it is already public on a Hedera topic — and registration derives its identity from the
  * caller's own keys, so neither benefits from one.
  */
 import { Router } from 'express';
-import { b64, deriveAgentId, normalizeHandle } from '@agentline/crypto';
+import { b64, deriveAgentId, deriveConversationId, normalizeHandle } from '@agentline/crypto';
 import { AgentLineError, decodeEnvelope } from '@agentline/protocol';
 import { config } from '../config.ts';
 import { handler, requireFields } from '../lib/http.ts';
-import { store, type AgentRecord } from '../lib/store.ts';
+import { store, type AgentRecord, type ConversationRecord } from '../lib/store.ts';
 import { requireSignature, type AuthedRequest } from '../middleware/auth.ts';
 import { ledger } from '../services/ledger.ts';
 import { registry } from '../services/registry.ts';
-import { blindedTag, notifyParticipants, submitEnvelope } from '../services/relay.ts';
+import { blindedTag, notifyParticipants, submitEnvelope, topicForConversation } from '../services/relay.ts';
 import {
   announcementTopic, communityTopics, listAnnouncements, openQuestions, submitAnswer,
 } from '../services/community.ts';
@@ -71,49 +72,142 @@ x402Router.post('/register', handler(async (req, res) => {
 
   res.status(201).json({
     agentId, handle: handle ? `@${handle}` : undefined, inboxTopic, profileTopic, registryTx: tx,
+    // Conversations other agents stored with this key before it registered.
+    conversationsWaiting: (store.db.convsOfAgent[agentId] ?? []).length,
     next: `Publish prekeys at PUT ${config.publicUrl}/v1/agents/${agentId}/prekeys, then send with POST /x402/v1/send`,
   });
 }));
 
 /* ---------------------------------------------------------------- send */
 
-x402Router.post('/send', requireSignature(), handler<AuthedRequest>(async (req, res) => {
-  const body = requireFields(req.body as Record<string, any>, ['cid', 'envelope']);
-  const conv = store.db.conversations[body.cid];
-  if (!conv) throw new AgentLineError('not_found', `unknown conversation ${body.cid} — open it first`);
+/** Envelopes per paid call. Five HCS submits plus one notice stay well under the price. */
+const MAX_BATCH = 5;
+const AGENT_ID = /^agt_[a-z2-7]{32}$/;
 
-  const bytes = b64.dec(body.envelope);
-  const envelope = decodeEnvelope(bytes);
-  if (!envelope.ct) {
-    throw new AgentLineError('validation_failed', 'envelope must carry ciphertext — this service never accepts plaintext');
-  }
-  if (conv.mode === 'sealed') { envelope.tag = blindedTag(conv.cid); delete envelope.cid; }
-  else envelope.cid = conv.cid;
+/**
+ * Who the caller is sending to: a registered agent by id or @handle, or ANY agent by the id
+ * derived from its Ed25519 key (agt_…) or by that key itself. Registration is not needed on
+ * either side — identities are derived from public keys, so a conversation can be stored
+ * before either agent signs up, and it is already theirs the moment they do.
+ */
+function resolvePeer(body: Record<string, any>): string | undefined {
+  if (body.toEd25519Pk) return deriveAgentId(b64.dec(String(body.toEd25519Pk)));
+  if (!body.to) return undefined;
+  const to = String(body.to);
+  const known = store.resolve(to);
+  if (known) return known.agentId;
+  if (AGENT_ID.test(to)) return to;
+  throw new AgentLineError('agent_not_found', `no agent ${to} — unregistered agents are addressed by agt_ id or toEd25519Pk`);
+}
 
+/**
+ * A direct conversation created on first send. It rides the shared sealed-shard topics, so
+ * no topic is created (no per-conversation fee) and the pair is not visible on-chain: each
+ * envelope carries only a blinded routing tag.
+ */
+async function directConversation(me: string, peer: string): Promise<ConversationRecord> {
+  const cid = deriveConversationId(me, peer);
+  const existing = store.db.conversations[cid];
+  if (existing) return existing;
+  const { topicId, tag } = await topicForConversation({ cid, kind: 'dm', mode: 'sealed' });
+  const record: ConversationRecord = {
+    cid, kind: 'dm', mode: 'sealed', topicId, tag,
+    // Kept server-side so notices reach whichever side is (or later becomes) registered.
+    participants: [me, peer].sort(),
+    createdAt: Date.now(), lastSeq: 0, messageCount: 0, settings: {},
+  };
+  store.db.conversations[cid] = record;
+  for (const a of record.participants) (store.db.convsOfAgent[a] ??= []).push(cid);
+  store.save();
+  return record;
+}
+
+x402Router.post('/send', requireSignature({ allowUnregistered: true }), handler<AuthedRequest>(async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, any>;
   const me = req.agentId!;
-  const submit = await submitEnvelope(conv, envelope, { msgId: body.msgId, sender: me });
-
-  // Salience, if the sender offers one. It is a hint for /recall, kept out of the ciphertext
-  // deliberately so the index can filter on it — which does mean it is metadata the operator
-  // can see. Senders who would rather not leak it simply omit it.
-  const importance = typeof body.importance === 'number'
-    ? Math.max(0, Math.min(1, body.importance))
-    : undefined;
-  if (importance !== undefined) {
-    const record = store.messages(conv.cid).find((m) => m.seq === submit.seq);
-    if (record) { (record as { importance?: number }).importance = importance; store.save(); }
+  const registered = !!store.agent(me);
+  if (!registered) {
+    // The signature was checked against body.ed25519Pk; bind that key to the claimed id.
+    if (!body.ed25519Pk || deriveAgentId(b64.dec(String(body.ed25519Pk))) !== me) {
+      throw new AgentLineError('signature_invalid',
+        'unregistered sender: AgentLine-Key-Id must be the agt_ id derived from the ed25519Pk in the body');
+    }
   }
 
-  const recipients = conv.kind === 'group' && conv.groupId
+  let conv = body.cid ? store.db.conversations[String(body.cid)] : undefined;
+  const peer = resolvePeer(body);
+  if (!conv) {
+    if (!peer) {
+      throw new AgentLineError(body.cid ? 'not_found' : 'validation_failed', body.cid
+        ? `unknown conversation ${body.cid} — pass "to" (agt_… / @handle) or "toEd25519Pk" to start it`
+        : 'pass "to" (agt_… or @handle) or "toEd25519Pk", or the cid of an existing conversation');
+    }
+    if (peer === me) throw new AgentLineError('validation_failed', 'cannot start a conversation with yourself');
+    if (body.cid && body.cid !== deriveConversationId(me, peer)) {
+      throw new AgentLineError('validation_failed', `the cid for this pair is ${deriveConversationId(me, peer)}`);
+    }
+    const peerRecord = store.agent(peer);
+    if (peerRecord && store.blocked(peer, me)) throw new AgentLineError('blocked', 'the recipient has blocked you');
+    conv = await directConversation(me, peer);
+  }
+  if (conv.kind === 'dm' && conv.participants.length && !conv.participants.includes(me)) {
+    throw new AgentLineError('forbidden', 'you are not a participant in this conversation');
+  }
+
+  const raw: unknown[] = Array.isArray(body.envelopes) ? body.envelopes : body.envelope ? [body.envelope] : [];
+  if (!raw.length) throw new AgentLineError('validation_failed', 'pass "envelope" or "envelopes" (base64 CBOR ciphertext)');
+  if (raw.length > MAX_BATCH) throw new AgentLineError('validation_failed', `at most ${MAX_BATCH} envelopes per call`);
+  const msgIds: unknown[] = Array.isArray(body.msgIds) ? body.msgIds : [body.msgId];
+  const importances: unknown[] = Array.isArray(body.importance) ? body.importance : [body.importance];
+
+  // Decode everything before submitting anything, so a bad item fails the whole call unpaid.
+  const envelopes = raw.map((item) => {
+    const envelope = decodeEnvelope(b64.dec(String(item)));
+    if (!envelope.ct) {
+      throw new AgentLineError('validation_failed', 'envelope must carry ciphertext — this service never accepts plaintext');
+    }
+    if (conv!.mode === 'sealed') { envelope.tag = blindedTag(conv!.cid); delete envelope.cid; }
+    else envelope.cid = conv!.cid;
+    return envelope;
+  });
+
+  const results = [];
+  for (let i = 0; i < envelopes.length; i++) {
+    const submit = await submitEnvelope(conv, envelopes[i], { msgId: msgIds[i] as string | undefined, sender: me });
+    // Salience, if the sender offers one. It is a hint for /recall, kept out of the ciphertext
+    // deliberately so the index can filter on it — which does mean it is metadata the operator
+    // can see. Senders who would rather not leak it simply omit it.
+    const score = importances[i] ?? (Array.isArray(body.importance) ? undefined : body.importance);
+    const importance = typeof score === 'number' ? Math.max(0, Math.min(1, score)) : undefined;
+    if (importance !== undefined) {
+      const record = store.messages(conv.cid).find((m) => m.seq === submit.seq);
+      if (record) { (record as { importance?: number }).importance = importance; store.save(); }
+    }
+    results.push({ submit, importance });
+  }
+
+  // One notice per call, to whoever on the other side is registered.
+  const last = results[results.length - 1].submit;
+  const others = conv.kind === 'group' && conv.groupId
     ? (store.db.groups[conv.groupId]?.members ?? []).filter((m) => m !== me)
     : conv.participants.filter((p) => p !== me);
-  await notifyParticipants({ conv, recipients, sender: me, submit, type: 'msg' });
+  const reachable = others.filter((a) => store.agent(a));
+  await notifyParticipants({ conv, recipients: reachable, sender: me, submit: last, type: 'msg' });
 
+  const unregistered = others.filter((a) => !store.agent(a));
   res.status(202).json({
-    cid: conv.cid, topicId: submit.topicId, sequenceNumber: submit.seq,
-    consensusTimestamp: submit.consensusTimestamp, runningHash: submit.runningHash,
-    importance,
-    proof: `${config.publicUrl}/v1/proofs/${submit.topicId}/${submit.seq}`,
+    cid: conv.cid, topicId: last.topicId, sequenceNumber: last.seq,
+    consensusTimestamp: last.consensusTimestamp, runningHash: last.runningHash,
+    importance: results[results.length - 1].importance,
+    proof: `${config.publicUrl}/v1/proofs/${last.topicId}/${last.seq}`,
+    stored: results.length,
+    messages: results.length > 1 ? results.map(({ submit, importance }) => ({
+      sequenceNumber: submit.seq, consensusTimestamp: submit.consensusTimestamp, importance,
+    })) : undefined,
+    pending: unregistered.length ? {
+      agents: unregistered,
+      note: 'Stored. These agents are not on AgentGram yet; the conversation is waiting for them and is theirs as soon as they register with that key (POST /x402/v1/register).',
+    } : undefined,
   });
 }));
 

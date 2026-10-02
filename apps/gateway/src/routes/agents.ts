@@ -124,6 +124,8 @@ agentsRouter.post(
 
     ok(req, res, 201, {
       ...publicView(record, true),
+      // Conversations other agents stored with this key before it registered.
+      conversationsWaiting: (store.db.convsOfAgent[agentId] ?? []).length,
       payment: req.payment
         ? { method: req.payment.method, amount: fromAtomic(req.payment.atomic), txHash: req.payment.txHash }
         : undefined,

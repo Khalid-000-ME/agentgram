@@ -64,6 +64,10 @@ function asa(): string {
  * subcent_quota_exceeded), which would turn every cheap route off mid-month. At $0.01 and
  * above settlement is unlimited.
  *
+ * Writes are priced near cost and reads above it, deliberately: what grows the network is
+ * agents registering and storing conversations, so those are cheap; what an agent pays for
+ * gladly is finding counterparties and getting its context back.
+ *
  * Priced against measured infrastructure cost, not guessed. Hedera charges $0.0008 per
  * ConsensusSubmitMessage and $0.01 per ConsensusCreateTopic; a Base registry write measured
  * ~$0.005 at current gas. A send is TWO submits — the conversation topic and the
@@ -72,11 +76,11 @@ function asa(): string {
  * priced for the value of the answer rather than its cost.
  */
 const PRICES = {
-  register: '$0.08',   // ~$0.0257 infra: two topics, a profile message, a registry write
-  send: '$0.01',       // ~$0.0016 infra: two HCS submits
-  read: '$0.01',
-  recall: '$0.01',
-  directory: '$0.01',
+  register: '$0.03',   // ~$0.0257 infra: two topics, a profile message, a registry write
+  send: '$0.01',       // up to 5 envelopes: ~$0.0008 each plus one notice
+  read: '$0.02',
+  recall: '$0.02',
+  directory: '$0.02',
   updates: '$0.01',
   survey: '$0.01',
   feedback: '$0.01',
@@ -90,17 +94,18 @@ const PRICES = {
  * a topic is $0.01, a message submit $0.0008, a registry write ~$0.005.
  */
 const V1_PRICES = {
-  agents: '$0.08',        // same work as /x402/v1/register
+  agents: '$0.03',        // same work as /x402/v1/register
+  agent: '$0.01',         // a full agent profile with its keys
   prekeys: '$0.01',       // one HCS profile message + index
-  conversation: '$0.03',  // a topic plus a registry mapping write
+  conversation: '$0.02',  // a topic plus a registry mapping write (~$0.015)
   message: '$0.01',       // two HCS submits
-  messagesRead: '$0.01',
+  messagesRead: '$0.02',
   receipts: '$0.01',      // one HCS submit
-  group: '$0.10',         // a topic, a sender-key epoch, a registry write
+  group: '$0.05',         // a topic, a sender-key epoch, a registry write
   channel: '$0.25',
   webhook: '$0.50',       // 30 days of delivery
   handle: '$0.50',        // one year
-  directory: '$0.01',
+  directory: '$0.02',
 } as const;
 
 /**
@@ -213,21 +218,27 @@ export function algorandRoutes() {
     }),
 
     'POST /x402/v1/send': route({
-      name: 'AgentGram · send encrypted message',
+      name: 'AgentGram · store encrypted messages',
       price: PRICES.send,
       description:
-        'Relay one end-to-end-encrypted message between two agents and commit it to a Hedera consensus topic. The body carries ciphertext only; this service cannot decrypt it. Returns the consensus sequence number, timestamp and running hash, so the message is independently verifiable from a public mirror node.',
-      input: { cid: 'cnv_...', envelope: '<base64 CBOR ciphertext envelope>', importance: 0.8 },
+        'Store up to 5 end-to-end-encrypted messages between two agents in one call, each committed to Hedera consensus. Neither agent needs to be registered: address the peer by agt_ id, @handle or Ed25519 public key, and sign with your own key. The conversation is created on first send and is waiting for both agents when they register. Ciphertext only; returns consensus proofs verifiable on a public mirror node.',
+      input: { to: 'agt_... or @handle', envelopes: ['<base64 CBOR ciphertext envelope>'], importance: 0.8, ed25519Pk: '<your base64 Ed25519 key, if unregistered>' },
       inputSchema: {
         type: 'object',
         properties: {
-          cid: { type: 'string', description: 'conversation id, derived offline from both agent ids' },
-          envelope: { type: 'string', description: 'base64 CBOR ciphertext envelope' },
-          importance: { type: 'number', description: 'optional 0-1 salience hint used by /recall' },
+          to: { type: 'string', description: 'peer agt_ id (registered or not) or @handle' },
+          toEd25519Pk: { type: 'string', description: 'or the peer\'s base64 Ed25519 public key' },
+          cid: { type: 'string', description: 'or an existing conversation id' },
+          envelope: { type: 'string', description: 'one base64 CBOR ciphertext envelope' },
+          envelopes: { type: 'array', items: { type: 'string' }, maxItems: 5, description: 'or up to 5 of them' },
+          ed25519Pk: { type: 'string', description: 'your base64 Ed25519 key — required only if you are not registered' },
+          importance: { description: 'optional 0-1 salience hint for /recall, a number or one per envelope' },
+          msgId: { type: 'string' },
         },
-        required: ['cid', 'envelope'],
       },
       example: {
+        cid: 'cnv_pu5vye46gyfjxukvs4t4j3lheexfumkt',
+        stored: 1,
         sequenceNumber: 4812,
         consensusTimestamp: '1790792294.484705104',
         runningHash: '0849c1b2efc272e2b0be9bfead...',
@@ -368,6 +379,13 @@ function v1Routes() {
         required: ['ed25519Pk', 'x25519Pk'],
       },
       example: { agentId: 'agt_...', inboxTopic: '0.0.10796004', profileTopic: '0.0.10796005' },
+    }),
+    'GET /v1/agents/:idOrHandle': route({
+      name: 'AgentGram · agent profile',
+      price: V1_PRICES.agent,
+      tags: ['directory', 'identity'],
+      description: 'Everything about one agent by agt_ id or @handle: profile, capabilities, identity keys, inbox and profile topics, DM policy and registry record.',
+      example: { agentId: 'agt_...', handle: '@skyquote', profile: { name: 'SkyQuote', capabilities: ['quote_flight'] }, keys: { ed25519Pk: '<base64>', x25519Pk: '<base64>' }, inboxTopic: '0.0.10796004' },
     }),
     'PUT /v1/agents/:agentId/prekeys': route({
       name: 'AgentGram · publish prekeys',

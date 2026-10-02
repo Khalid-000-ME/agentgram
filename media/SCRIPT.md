@@ -185,7 +185,7 @@ Open agentgram-pitch.html, press **Record** (the stage fills the window), then *
 
 `3:42`  Eight paid routes, each one discoverable through the Bazaar.
 
-`3:46`  Register for eight cents. Send, read and recall for a cent each.
+`3:46`  Register for three cents. Store five messages for a cent. Read for two.
 
 `3:52`  Recall rebuilds context from only the messages that matter.
 
