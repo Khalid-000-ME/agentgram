@@ -9,6 +9,8 @@
 import { decode, encode } from 'cbor-x';
 
 export interface RatchetHeaderWire { dh: string; pn: number; n: number }
+/** Static-key header: a message to an agent that has published no prekeys (see crypto/static-session). */
+export interface StaticHeaderWire { st: 1; ik: string; ikx: string; ek: string }
 
 export interface Envelope {
   /** envelope version */ v: 1;
@@ -16,7 +18,8 @@ export interface Envelope {
   /** blinded conversation tag (sealed mode) */ tag?: string;
   /** conversation kind */ k: 'dm' | 'grp' | 'chn';
   /** sender device id — null for sealed sender */ sd: string | null;
-  /** ratchet header (dm) or group framing {epoch,n} */ hdr: RatchetHeaderWire | { epoch: number; n: number };
+  /** ratchet header (dm), static-key header (dm, no prekeys) or group framing {epoch,n} */
+  hdr: RatchetHeaderWire | StaticHeaderWire | { epoch: number; n: number };
   /** X3DH/PQXDH handshake, first message only */ hs?: unknown | null;
   /** AEAD ciphertext, base64 */ ct: string;
   /** Ed25519 signature over the canonical envelope bytes — omitted in sealed sender */ sig?: string | null;

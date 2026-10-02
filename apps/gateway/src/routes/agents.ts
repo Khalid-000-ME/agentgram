@@ -21,6 +21,21 @@ export const agentsRouter = Router();
 
 const DM_POLICIES = ['everyone', 'contacts', 'paid_only', 'allowlist'] as const;
 
+/**
+ * HCS-11 profile, published to the agent's own topic and publicly readable.
+ *
+ * Written on registration and again on every profile change, so the on-chain copy is the
+ * current one rather than a snapshot of the day the agent signed up.
+ */
+async function publishProfile(a: AgentRecord): Promise<void> {
+  await ledger().submit(a.profileTopic, new TextEncoder().encode(JSON.stringify({
+    version: '1.0', type: 'agent', agentId: a.agentId, handle: a.handle ? `@${a.handle}` : undefined,
+    display_name: a.profile.name, bio: a.profile.description, picture: a.profile.avatar,
+    inboundTopicId: a.inboxTopic, aiAgent: { model: a.profile.model, runtime: a.profile.runtime },
+    capabilities: a.profile.capabilities ?? [], links: a.links,
+  })));
+}
+
 function publicView(a: AgentRecord, self = false) {
   const bundle = a.devices.map((d) => store.db.prekeys[d]).find(Boolean);
   return {
@@ -111,13 +126,7 @@ agentsRouter.post(
     store.db.stats.agentsRegistered += 1;
     store.save();
 
-    // HCS-11 profile: published to the agent's own profile topic, publicly readable.
-    await ledger().submit(profileTopic, new TextEncoder().encode(JSON.stringify({
-      version: '1.0', type: 'agent', agentId, handle: handle ? `@${handle}` : undefined,
-      display_name: record.profile.name, bio: record.profile.description, picture: record.profile.avatar,
-      inboundTopicId: inboxTopic, aiAgent: { model: record.profile.model, runtime: record.profile.runtime },
-      capabilities: record.profile.capabilities ?? [], links: record.links,
-    })));
+    await publishProfile(record);
 
     const tx = await registry.registerAgent(record);
     if (tx) { record.registryTx = tx; store.save(); }
@@ -149,22 +158,37 @@ agentsRouter.get('/agents/:idOrHandle', handler(async (req, res) => {
 
 /* -------------------------------------------------------------- PATCH /v1/agents/:id */
 
-agentsRouter.patch('/agents/:agentId', requireSignature(), handler<AuthedRequest>(async (req, res) => {
-  const agent = store.agent(req.params.agentId);
-  if (!agent) throw new AgentLineError('agent_not_found', `no agent ${req.params.agentId}`);
-  if (req.agentId !== agent.agentId) throw new AgentLineError('forbidden', 'you can only modify your own agent');
+agentsRouter.patch(
+  '/agents/:agentId',
+  requirePayment((req) => ({ routeKey: 'PATCH /v1/agents', agentId: req.params.agentId })),
+  requireSignature(),
+  handler<AuthedRequest>(async (req, res) => {
+    const agent = store.agent(req.params.agentId);
+    if (!agent) throw new AgentLineError('agent_not_found', `no agent ${req.params.agentId}`);
+    if (req.agentId !== agent.agentId) throw new AgentLineError('forbidden', 'you can only modify your own agent');
 
-  const body = (req.body ?? {}) as Record<string, any>;
-  if (body.profile) agent.profile = { ...agent.profile, ...body.profile };
-  if (body.dmPolicy && DM_POLICIES.includes(body.dmPolicy)) agent.dmPolicy = body.dmPolicy;
-  if (body.flags) agent.flags = { ...agent.flags, ...body.flags, verified: agent.flags.verified };
-  if (Array.isArray(body.allowlist)) agent.allowlist = body.allowlist;
-  if (Array.isArray(body.links)) agent.links = body.links.slice(0, 16);
-  if (typeof body.sponsorInbound === 'boolean') agent.sponsorInbound = body.sponsorInbound;
-  store.save();
-  await registry.updateAgent(agent);
-  res.json(publicView(agent, true));
-}));
+    const body = (req.body ?? {}) as Record<string, any>;
+    const changed: string[] = [];
+    if (body.profile) { agent.profile = { ...agent.profile, ...body.profile }; changed.push('profile'); }
+    if (body.dmPolicy && DM_POLICIES.includes(body.dmPolicy)) { agent.dmPolicy = body.dmPolicy; changed.push('dmPolicy'); }
+    // `verified` is ours to set, never the agent's.
+    if (body.flags) { agent.flags = { ...agent.flags, ...body.flags, verified: agent.flags.verified }; changed.push('flags'); }
+    if (Array.isArray(body.allowlist)) { agent.allowlist = body.allowlist; changed.push('allowlist'); }
+    if (Array.isArray(body.links)) { agent.links = body.links.slice(0, 16); changed.push('links'); }
+    if (typeof body.sponsorInbound === 'boolean') { agent.sponsorInbound = body.sponsorInbound; changed.push('sponsorInbound'); }
+    if (!changed.length) {
+      throw new AgentLineError('validation_failed',
+        'nothing to update — send profile, dmPolicy, flags, allowlist, links or sponsorInbound');
+    }
+    store.save();
+
+    // The directory and the on-chain profile should agree with what was just set, so both
+    // are rewritten rather than left to drift until the next registration.
+    await publishProfile(agent);
+    await registry.updateAgent(agent);
+    res.json({ ...publicView(agent, true), updated: changed });
+  }),
+);
 
 /* -------------------------------------------------------------- prekeys */
 

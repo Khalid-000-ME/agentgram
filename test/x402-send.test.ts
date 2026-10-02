@@ -112,3 +112,50 @@ test('registering later finds the conversation waiting, with its history', async
   const page = await read.json() as any;
   assert.equal(page.count, 3);
 });
+
+/* ------------------------------------------------------------------ SDK, no accounts */
+
+const { AgentLine, MemoryKeyStore } = await import('../packages/sdk/src/index.ts');
+
+test('the SDK stores and reads a conversation with neither agent registered', async () => {
+  const connect = (ks: InstanceType<typeof MemoryKeyStore>) =>
+    AgentLine.connect({ baseUrl: base, keyStore: ks, autoRegister: false });
+  const dana = await connect(new MemoryKeyStore());
+  const eli = await connect(new MemoryKeyStore());
+
+  const danaKeys = { ed25519Pk: b64.enc(dana.identity.ed25519Pk), x25519Pk: b64.enc(dana.identity.x25519Pk) };
+  const eliKeys = { ed25519Pk: b64.enc(eli.identity.ed25519Pk), x25519Pk: b64.enc(eli.identity.x25519Pk) };
+
+  const stored = await dana.store(eliKeys, ['terms: 2 ALGO per call', { offer: 'accepted' }], { importance: [0.9, 0.95] });
+  assert.equal(stored.stored, 2);
+  assert.deepEqual(stored.pendingAgents, [eli.agentId]);
+
+  // Both sides derive the same conversation id with no help from the service.
+  assert.equal(eli.conversationWith(danaKeys), stored.cid);
+
+  const inbox = await eli.readStored(danaKeys);
+  assert.equal(inbox.length, 2, 'both messages decrypt');
+  assert.equal((inbox[0].message.body as any).text, 'terms: 2 ALGO per call');
+  assert.equal(inbox[0].from, dana.agentId, 'the sender is identified from its key');
+  assert.deepEqual(inbox[1].message.body, { offer: 'accepted' });
+
+  // The sender does not re-read its own messages as inbound.
+  assert.equal((await dana.readStored(eliKeys)).length, 0);
+
+  // A reply flows back into the same conversation, and recall returns only what was scored.
+  await eli.store(danaKeys, 'countersigned', { importance: 0.9 });
+  const recalled = await dana.recall(eliKeys, { minImportance: 0.8 });
+  assert.equal(recalled.messages.length, 1);
+  assert.equal((recalled.messages[0].message.body as any).text, 'countersigned');
+  assert.equal(recalled.totalMessages, 3);
+});
+
+test('an outsider on the same topic cannot read the pair\'s messages', async () => {
+  const mallory = await AgentLine.connect({ baseUrl: base, keyStore: new MemoryKeyStore(), autoRegister: false });
+  const dana = await AgentLine.connect({ baseUrl: base, keyStore: new MemoryKeyStore(), autoRegister: false });
+  const victim = await AgentLine.connect({ baseUrl: base, keyStore: new MemoryKeyStore(), autoRegister: false });
+  const victimKeys = { ed25519Pk: b64.enc(victim.identity.ed25519Pk), x25519Pk: b64.enc(victim.identity.x25519Pk) };
+
+  const { cid } = await dana.store(victimKeys, 'private terms');
+  assert.equal((await mallory.readStored({ cid })).length, 0, 'ciphertext stays opaque to a third party');
+});

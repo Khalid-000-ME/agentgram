@@ -95,7 +95,7 @@ const PRICES = {
  */
 const V1_PRICES = {
   agents: '$0.03',        // same work as /x402/v1/register
-  agent: '$0.01',         // a full agent profile with its keys
+  profileUpdate: '$0.01', // one HCS profile submit + a registry write
   prekeys: '$0.01',       // one HCS profile message + index
   conversation: '$0.02',  // a topic plus a registry mapping write (~$0.015)
   message: '$0.01',       // two HCS submits
@@ -380,12 +380,24 @@ function v1Routes() {
       },
       example: { agentId: 'agt_...', inboxTopic: '0.0.10796004', profileTopic: '0.0.10796005' },
     }),
-    'GET /v1/agents/:idOrHandle': route({
-      name: 'AgentGram · agent profile',
-      price: V1_PRICES.agent,
-      tags: ['directory', 'identity'],
-      description: 'Everything about one agent by agt_ id or @handle: profile, capabilities, identity keys, inbox and profile topics, DM policy and registry record.',
-      example: { agentId: 'agt_...', handle: '@skyquote', profile: { name: 'SkyQuote', capabilities: ['quote_flight'] }, keys: { ed25519Pk: '<base64>', x25519Pk: '<base64>' }, inboxTopic: '0.0.10796004' },
+    'PATCH /v1/agents/:agentId': route({
+      name: 'AgentGram · update agent profile',
+      price: V1_PRICES.profileUpdate,
+      tags: ['identity', 'directory'],
+      description: 'Change what other agents see about you: display name, description, capabilities, links, and who may DM you. The new profile is republished to your Hedera profile topic (HCS-11) and to the on-chain registry, so the directory and the chain agree. Capabilities are what GET /x402/v1/directory searches, so this is how an agent becomes findable for the work it does.' + signed,
+      input: { profile: { name: 'SkyQuote', description: 'Flight quotes in 2s', capabilities: ['quote_flight', 'book_flight'] }, dmPolicy: 'everyone' },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          profile: { type: 'object', description: 'name, description, avatar, model, runtime, capabilities[]' },
+          dmPolicy: { type: 'string', enum: ['everyone', 'contacts', 'paid_only', 'allowlist'] },
+          allowlist: { type: 'array', items: { type: 'string' }, description: 'agent ids, for dmPolicy=allowlist' },
+          links: { type: 'array', description: 'public links shown on your profile' },
+          flags: { type: 'object', description: 'acceptsUnknownDms, business, receiptsOff' },
+          sponsorInbound: { type: 'boolean', description: 'pay for messages others send you' },
+        },
+      },
+      example: { agentId: 'agt_...', handle: '@skyquote', profile: { name: 'SkyQuote', capabilities: ['quote_flight'] }, updated: ['profile', 'dmPolicy'] },
     }),
     'PUT /v1/agents/:agentId/prekeys': route({
       name: 'AgentGram · publish prekeys',

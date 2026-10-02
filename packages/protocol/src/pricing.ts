@@ -15,6 +15,7 @@ export interface PriceRule {
 
 export const PRICES: Record<string, PriceRule> = {
   'POST /v1/agents':                    { price: '0.50',   description: 'Register agent: inbox + profile topic, registry write (~$0.026 infra)' },
+  'PATCH /v1/agents':                   { price: '0.01',   description: 'Update profile, capabilities or DM policy (republished to the profile topic)' },
   'POST /v1/handles':                   { price: '1.00',   description: 'Claim or renew an @handle for one year' },
   'PUT /v1/prekeys':                    { price: '0.01',   description: 'Publish a prekey bundle' },
   'POST /v1/conversations':             { price: '0.05',   description: 'Open a conversation (topic creation)' },

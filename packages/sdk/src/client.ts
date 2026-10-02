@@ -9,12 +9,14 @@
  * loop, RFC 9421 request signing, idempotency and replay-from-chain on cold start.
  */
 import {
-  acceptSession, b64, clearPendingHandshake, createGroup, deriveConversationId, deriveMessageId,
+  acceptSession, b64, clearPendingHandshake, createGroup, deriveAgentId, deriveConversationId, deriveMessageId,
   distribution, emptyIndex, frankingTag, generateIdentity, groupDecrypt, groupEncrypt,
   identityFromStore, initiateSession, newConvSalt, newFrankKey, newKeyStore, openIndex,
   proofOfKeyPossession, publishablePrekeys, ratchetDecrypt, ratchetEncrypt, rotateEpoch,
-  rotateSignedPrekey, safetyNumber, sealIndex, shredSession, utf8, verifyPrekeyBundle,
+  rotateSignedPrekey, safetyNumber, sealIndex, shredSession, staticOpen, staticSeal, utf8,
+  verifyPrekeyBundle,
   type GroupState, type HandshakeHeader, type PersonalIndex, type PrekeyBundle, type SessionState,
+  type StaticHeader,
 } from '@agentline/crypto';
 import {
   AgentLineError, decodeEnvelope, decodeHeaderJson, encodeEnvelope, signRequest,
@@ -57,6 +59,24 @@ export interface ReceivedMessage {
   verified: boolean;
 }
 
+/** A peer addressed by its keys rather than by a registration on this service. */
+export interface PeerKeys {
+  /** base64 Ed25519 identity key — the agent id derives from it */
+  ed25519Pk: string;
+  /** base64 X25519 identity key — what messages are encrypted to */
+  x25519Pk: string;
+}
+
+export interface StoreResult {
+  cid: string;
+  stored: number;
+  sequenceNumber: number;
+  consensusTimestamp: string;
+  msgIds: string[];
+  /** agents in this conversation that have not registered yet, if any */
+  pendingAgents?: string[];
+}
+
 export interface SendResult {
   msgId: string;
   cid: string;
@@ -66,11 +86,18 @@ export interface SendResult {
   payment?: { method: string; amount: string; route?: string; txHash?: string };
 }
 
+/** Inclusive integer range, for marking the sequence numbers a batch wrote. */
+function range(from: number, to: number): number[] {
+  const out: number[] = [];
+  for (let i = from; i <= to; i++) if (i > 0) out.push(i);
+  return out;
+}
+
 const DEFAULT_BASE = process.env.AGENTLINE_URL ?? 'http://localhost:8402';
 
 export class AgentLine {
   private state!: AgentPersistedState;
-  private store: KeyStore;
+  private keys: KeyStore;
   private payer: Payer;
   private fetchImpl: typeof fetch;
   private opts: ConnectOptions;
@@ -79,7 +106,7 @@ export class AgentLine {
   private constructor(opts: ConnectOptions) {
     this.opts = opts;
     this.baseUrl = (opts.baseUrl ?? DEFAULT_BASE).replace(/\/$/, '');
-    this.store = typeof opts.keyStore === 'string' ? new FileKeyStore(opts.keyStore)
+    this.keys = typeof opts.keyStore === 'string' ? new FileKeyStore(opts.keyStore)
       : opts.keyStore ?? new MemoryKeyStore();
     this.payer = opts.payer ?? (opts.wallet ? new WalletPayer(opts.wallet) : new NullPayer());
     this.fetchImpl = opts.fetchImpl ?? fetch;
@@ -99,7 +126,7 @@ export class AgentLine {
   }
 
   private async init(): Promise<void> {
-    const loaded = await this.store.load();
+    const loaded = await this.keys.load();
     this.state = loaded ?? {
       keys: newKeyStore(generateIdentity()),
       sessions: {}, groups: {}, index: emptyIndex(),
@@ -116,7 +143,7 @@ export class AgentLine {
   private async persist(): Promise<void> {
     this.state.index.sessions = this.state.sessions as Record<string, unknown>;
     this.state.index.groups = this.state.groups as Record<string, unknown>;
-    await this.store.save(this.state);
+    await this.keys.save(this.state);
   }
 
   /* ------------------------------------------------------------------ identity */
@@ -248,25 +275,7 @@ export class AgentLine {
     const entry = this.state.index.conversations[cid];
     if (!entry) throw new Error(`unknown conversation ${cid}`);
 
-    const type: MessageType = opts.type ?? (typeof content === 'string' ? 'text' : 'json');
-    const body: MessageBody = {
-      id: '',
-      ts: Date.now(),
-      type,
-      body: typeof content === 'string' ? { text: content } : content,
-      replyTo: opts.replyTo,
-      mentions: opts.mentions,
-      expiresIn: opts.expiresIn ?? entry.disappearAfter,
-      schema: opts.schema,
-    };
-    const clientSeq = (this.state.meta.clientSeq = (this.state.meta.clientSeq ?? 0) + 1);
-    body.id = deriveMessageId(cid, this.deviceId, clientSeq);
-
-    // Franking: commit to this body so the recipient can prove authorship if they report it.
-    const frankKey = newFrankKey();
-    const bodyBytes = utf8.enc(JSON.stringify({ ...body, frankKey: undefined }));
-    const ft = frankingTag(frankKey, bodyBytes);
-    const plaintext = utf8.enc(JSON.stringify({ ...body, frankKey: b64.enc(frankKey) }));
+    const { body, plaintext, ft } = this.compose(cid, content, { ...opts, expiresIn: opts.expiresIn ?? entry.disappearAfter });
 
     const envelope = entry.kind === 'group'
       ? this.encryptForGroup(cid, plaintext, ft)
@@ -289,6 +298,36 @@ export class AgentLine {
       consensusTimestamp: result.consensusTimestamp, runningHash: result.runningHash,
       payment: result.payment,
     };
+  }
+
+  /**
+   * Build the plaintext message body, its id and its franking tag.
+   *
+   * Franking commits to the body so a recipient can later prove to us who sent it without
+   * us ever having seen it — which is why the key travels inside the ciphertext.
+   */
+  private compose(
+    cid: string,
+    content: string | Record<string, unknown>,
+    opts: { type?: MessageType; replyTo?: string; mentions?: string[]; expiresIn?: number; schema?: string } = {},
+  ): { body: MessageBody; plaintext: Uint8Array; ft: string } {
+    const body: MessageBody = {
+      id: '',
+      ts: Date.now(),
+      type: opts.type ?? (typeof content === 'string' ? 'text' : 'json'),
+      body: typeof content === 'string' ? { text: content } : content,
+      replyTo: opts.replyTo,
+      mentions: opts.mentions,
+      expiresIn: opts.expiresIn,
+      schema: opts.schema,
+    };
+    const clientSeq = (this.state.meta.clientSeq = (this.state.meta.clientSeq ?? 0) + 1);
+    body.id = deriveMessageId(cid, this.deviceId, clientSeq);
+
+    const frankKey = newFrankKey();
+    const ft = frankingTag(frankKey, utf8.enc(JSON.stringify({ ...body, frankKey: undefined })));
+    const plaintext = utf8.enc(JSON.stringify({ ...body, frankKey: b64.enc(frankKey) }));
+    return { body, plaintext, ft };
   }
 
   private encryptForDm(cid: string, plaintext: Uint8Array, ft: string): Envelope {
@@ -314,6 +353,151 @@ export class AgentLine {
       v: 1, k: 'grp', cid, sd: this.deviceId,
       hdr: { epoch: enc.epoch, n: enc.n }, ct: enc.ct, ft,
     };
+  }
+
+  /* ------------------------------------------------------ messaging without accounts */
+
+  /**
+   * Resolve a peer to the keys we encrypt to.
+   *
+   * A registered peer is looked up (free); an unregistered one is simply its own keys,
+   * which the caller must already hold — there is nowhere else they could come from.
+   */
+  private async peerKeysOf(peer: string | PeerKeys): Promise<{ agentId: string; x25519Pk: string }> {
+    if (typeof peer !== 'string') {
+      return { agentId: deriveAgentId(b64.dec(peer.ed25519Pk)), x25519Pk: peer.x25519Pk };
+    }
+    const profile = await this.request<{ agentId: string; keys: { x25519Pk: string } }>(
+      'GET', `/v1/agents/${encodeURIComponent(peer)}`,
+    );
+    return { agentId: profile.agentId, x25519Pk: profile.keys.x25519Pk };
+  }
+
+  /**
+   * Store messages with any agent — registered or not, and whether or not WE are registered.
+   *
+   * This is the flat `/x402/v1/send` path: one payment carries up to five messages, the
+   * conversation id is derived from the two agent ids so both sides compute it offline, and
+   * nothing has to exist on the service beforehand. Encryption is static-key mode (see
+   * crypto/static-session): it works with a peer that has published nothing, at the cost of
+   * forward secrecy. For a forward-secret session with a registered peer, use `send()`.
+   */
+  async store(
+    peer: string | PeerKeys,
+    contents: string | Record<string, unknown> | Array<string | Record<string, unknown>>,
+    opts: { type?: MessageType; importance?: number | number[]; replyTo?: string; schema?: string } = {},
+  ): Promise<StoreResult> {
+    const list = Array.isArray(contents) ? contents : [contents];
+    if (!list.length) throw new Error('store(): nothing to store');
+    if (list.length > 5) throw new Error('store(): at most 5 messages per call');
+
+    const { agentId: peerAgentId, x25519Pk } = await this.peerKeysOf(peer);
+    const cid = deriveConversationId(this.agentId, peerAgentId);
+    const peerX = b64.dec(x25519Pk);
+    const aad = utf8.enc(cid);
+
+    const msgIds: string[] = [];
+    const envelopes = list.map((content) => {
+      const { body, plaintext, ft } = this.compose(cid, content, { type: opts.type, replyTo: opts.replyTo, schema: opts.schema });
+      msgIds.push(body.id);
+      const sealed = staticSeal(this.identity, peerX, plaintext, aad);
+      const envelope: Envelope = {
+        v: 1, k: 'dm', cid, sd: this.deviceId, hdr: sealed.hdr, ct: sealed.ct, ft,
+      };
+      return b64.enc(encodeEnvelope(envelope));
+    });
+
+    const res = await this.request<{
+      cid: string; stored: number; sequenceNumber: number; consensusTimestamp: string;
+      pending?: { agents: string[] };
+    }>('POST', '/x402/v1/send', {
+      to: peerAgentId,
+      envelopes,
+      msgIds,
+      importance: opts.importance,
+      // Required only while we are unregistered: it binds our claimed id to the signing key.
+      ed25519Pk: this.state.meta.registered ? undefined : b64.enc(this.identity.ed25519Pk),
+    }, { idempotencyKey: msgIds[0] });
+
+    this.state.index.conversations[cid] ??= {
+      cid, mode: 'open', kind: 'dm', peerAgentId, topicId: '', createdAt: Date.now(),
+    };
+    this.state.index.conversations[cid].lastSeq = res.sequenceNumber;
+    for (const seq of range(res.sequenceNumber - res.stored + 1, res.sequenceNumber)) this.noteOwnSeq(cid, seq);
+    this.state.index.contacts[peerAgentId] ??= { agentId: peerAgentId, addedAt: Date.now() };
+    await this.persist();
+
+    return {
+      cid, stored: res.stored, sequenceNumber: res.sequenceNumber,
+      consensusTimestamp: res.consensusTimestamp, msgIds,
+      pendingAgents: res.pending?.agents,
+    };
+  }
+
+  /** The conversation id this agent and a peer share — computable offline by both sides. */
+  conversationWith(peer: string | PeerKeys): string {
+    const agentId = typeof peer === 'string' ? peer : deriveAgentId(b64.dec(peer.ed25519Pk));
+    return deriveConversationId(this.agentId, agentId);
+  }
+
+  /**
+   * Read a stored conversation through the flat `/x402/v1/read` path, which needs no
+   * account on either side. Messages we cannot decrypt are returned as `null` bodies
+   * rather than throwing, so one unreadable entry never hides the rest.
+   */
+  async readStored(
+    peer: string | PeerKeys | { cid: string },
+    opts: { afterSeq?: number; limit?: number } = {},
+  ): Promise<ReceivedMessage[]> {
+    const cid = typeof peer === 'object' && 'cid' in peer ? peer.cid : this.conversationWith(peer as string | PeerKeys);
+    const res = await this.request<{
+      messages: Array<{ seq: number; consensusTimestamp: string; envelope: string; importance?: number }>;
+    }>('POST', '/x402/v1/read', { cid, afterSeq: opts.afterSeq ?? 0, limit: opts.limit ?? 50 });
+    return this.decryptPage(cid, res.messages);
+  }
+
+  /**
+   * Replay only what mattered: the messages a sender scored at or above `minImportance`.
+   *
+   * The point of a permanent transcript is not re-reading it — it is not having to. An
+   * agent resuming work pays once and processes the decisions instead of the whole history.
+   */
+  async recall(
+    peer: string | PeerKeys | { cid: string },
+    opts: { minImportance?: number; limit?: number } = {},
+  ): Promise<{ messages: ReceivedMessage[]; totalMessages: number; contextSaved: string }> {
+    const cid = typeof peer === 'object' && 'cid' in peer ? peer.cid : this.conversationWith(peer as string | PeerKeys);
+    const res = await this.request<{
+      totalMessages: number; contextSaved: string;
+      messages: Array<{ seq: number; consensusTimestamp: string; envelope: string; importance?: number }>;
+    }>('POST', '/x402/v1/recall', { cid, minImportance: opts.minImportance ?? 0.6, limit: opts.limit ?? 20 });
+    return {
+      messages: await this.decryptPage(cid, res.messages),
+      totalMessages: res.totalMessages,
+      contextSaved: res.contextSaved,
+    };
+  }
+
+  private async decryptPage(
+    cid: string,
+    page: Array<{ seq: number; consensusTimestamp: string; envelope: string; importance?: number }>,
+  ): Promise<ReceivedMessage[]> {
+    const out: ReceivedMessage[] = [];
+    for (const m of page) {
+      if (this.isOwnSeq(cid, m.seq)) continue;
+      try {
+        const decrypted = await this.decryptEnvelope(cid, m.envelope, null);
+        if (!decrypted) continue;
+        out.push({
+          cid, seq: m.seq, consensusTimestamp: m.consensusTimestamp,
+          from: decrypted.from, senderDeviceId: null, message: decrypted.body, verified: true,
+        });
+      } catch {
+        // Not ours to read (another pair's message on a shared topic), or a mode we do not
+        // hold keys for. Skipping is correct; throwing would hide every later message.
+      }
+    }
+    return out;
   }
 
   /* ------------------------------------------------------------------ receiving */
@@ -372,6 +556,15 @@ export class AgentLine {
       }
       const plain = groupDecrypt(group, sender, { epoch: hdr.epoch, n: hdr.n, ct: envelope.ct }, aad);
       return { body: JSON.parse(utf8.dec(plain)) as MessageBody, from: sender };
+    }
+
+    // Static-key mode: a message from (or to) an agent with no published prekeys. There is
+    // no session to advance, so it decrypts standalone and never touches the ratchet.
+    if ((envelope.hdr as { st?: number }).st === 1) {
+      const hdr = envelope.hdr as StaticHeader;
+      if (hdr.ik === b64.enc(this.identity.ed25519Pk)) return null;    // our own, replayed back
+      const opened = staticOpen(this.identity, hdr, envelope.ct, aad);
+      return { body: JSON.parse(utf8.dec(opened.plaintext)) as MessageBody, from: opened.peerAgentId };
     }
 
     let session: SessionState | undefined = this.state.sessions[cid];

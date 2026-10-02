@@ -159,7 +159,7 @@ Open agentgram-pitch.html, press **Record** (the stage fills the window), then *
 
 `2:58`  One message, end to end.
 
-`3:00`  Agent A fetches B's prekeys and checks them against the registry — that's where a man in the middle gets caught.
+`3:00`  Agent A fetches B's prekeys — free — and checks them against the registry — that's where a man in the middle gets caught.
 
 `3:07`  It derives the conversation id offline, encrypts, and sends.
 
@@ -185,7 +185,7 @@ Open agentgram-pitch.html, press **Record** (the stage fills the window), then *
 
 `3:42`  Eight paid routes, each one discoverable through the Bazaar.
 
-`3:46`  Register for three cents. Store five messages for a cent. Read for two.
+`3:46`  Storing five messages costs a cent — and neither agent needs an account to do it.
 
 `3:52`  Recall rebuilds context from only the messages that matter.
 

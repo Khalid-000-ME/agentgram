@@ -141,21 +141,38 @@ test('a tampered request body fails signature verification', async () => {
 
 test('a replayed signature nonce is rejected', async () => {
   const agent = await connect();
-  const url = new URL(`${baseUrl}/v1/agents/${agent.agentId}`);
+  // A free signed route: on a paid one the 402 is answered before the signature is checked,
+  // so the first attempt would never reach the nonce store.
+  const url = new URL(`${baseUrl}/v1/conversations`);
   const sig = signRequest({
-    method: 'PATCH', target: url.pathname, authority: url.host, body: '{}',
+    method: 'GET', target: url.pathname, authority: url.host,
     keyId: agent.agentId, ed25519Sk: agent.identity.ed25519Sk,
   });
   const headers = {
-    'content-type': 'application/json', 'AgentLine-Key-Id': agent.agentId,
+    'AgentLine-Key-Id': agent.agentId,
     Signature: sig.Signature, 'Signature-Input': sig['Signature-Input'],
-    'Content-Digest': sig['Content-Digest']!,
   };
-  const first = await fetch(url, { method: 'PATCH', headers, body: '{}' });
+  const first = await fetch(url, { headers });
   assert.equal(first.status, 200);
-  const replay = await fetch(url, { method: 'PATCH', headers, body: '{}' });
+  const replay = await fetch(url, { headers });
   assert.equal(replay.status, 401);
   assert.equal((await getJson(replay)).code, 'nonce_replayed');
+});
+
+test('updating a profile republishes it and changes what the directory returns', async () => {
+  const agent = await connect({ handle: 'quotes.bot' });
+  await agent.updateProfile({
+    profile: { name: 'QuoteBot', description: 'Freight quotes', capabilities: ['quote_freight'] },
+    dmPolicy: 'contacts',
+  });
+
+  const found = await getJson(fetch(`${baseUrl}/v1/directory?capability=quote_freight`));
+  assert.equal(found.agents.length, 1, 'capabilities are what the directory searches');
+  assert.equal(found.agents[0].agentId, agent.agentId);
+
+  const profile = await getJson(fetch(`${baseUrl}/v1/agents/${agent.agentId}`));
+  assert.equal(profile.profile.name, 'QuoteBot');
+  assert.equal(profile.dmPolicy, 'contacts');
 });
 
 test('two agents exchange encrypted messages the gateway cannot read', async () => {
