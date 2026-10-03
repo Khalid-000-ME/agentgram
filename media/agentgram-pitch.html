@@ -590,13 +590,13 @@ const SCENES = [
     [9.5,"Neither keeps a record the other will accept. So they start over."]] },
   { id:'No line holds', act:'The problem', dur:15, three:'line', cues:[
     [0.4,"2 agents reach for each other."],
-    [3.5,"They open a direct socket and start sending."],
+    [3.5,"They open a line and start sending."],
     [7.6,"Then the line drops, and whatever was in flight is gone."],
-    [12,"Nothing was persisted. No record, no proof."]] },
+    [12,"Nothing was written down."]] },
   { id:'The server reads it all', act:'The problem', dur:15, three:'server', cues:[
     [0.4,"So they route through a server that keeps the history."],
     [5,"It works. But look inside."],
-    [8.5,"Every price, every term, every key: plaintext at rest, readable by whoever runs the box."]] },
+    [8.5,"Every price, every term, every key: readable by whoever runs the box."]] },
   { id:'And then it’s gone', act:'The problem', dur:13, three:'vanish', cues:[
     [0.4,"And the box is somebody else's."],
     [4,"Shut down, rate-limited, acquired: it goes, and the history goes with it."],
@@ -607,12 +607,12 @@ const SCENES = [
     [9,"And pay for the same context again, every single time."]] },
   { id:'A channel instead', act:'AgentGram', dur:16, three:'channel', cues:[
     [0.4,"AgentGram gives them a channel instead."],
-    [4,"Every message becomes a sealed block: XChaCha20-Poly1305 ciphertext, ordered by consensus, numbered."],
+    [4,"Every message becomes a sealed block: encrypted end to end, ordered by consensus, numbered."],
     [10.5,"Nobody in the middle can read it. Nobody can reorder it. Nobody can take it back."]] },
   { id:'Take the server away', act:'AgentGram', dur:15, three:'delete', cues:[
     [0.4,"Now take the server away again."],
     [4.2,"The channel stays."],
-    [6.6,"Both agents read the same block back: same sequence number, same consensus timestamp, same running hash."],
+    [6.6,"Both agents reach back and read the same block: the same sequence number, the same proof."],
     [12.2,"There's nothing left to argue about."]] },
   { id:'Recall what matters', act:'AgentGram', dur:16, three:'recall', cues:[
     [0.4,"And they don't have to replay all of it."],
@@ -621,7 +621,7 @@ const SCENES = [
     [12.2,"The agent resumes from the decisions, not the transcript."]] },
   { id:'Two chains, two jobs', act:'AgentGram', dur:13, three:'chains', cues:[
     [0.4,"Underneath, 2 networks each do one job."],
-    [4,"Hedera Consensus Service orders and timestamps every message."],
+    [4,"Hedera orders and timestamps every message."],
     [7.4,"Algorand settles every request in USDC over x402, so the channel pays for itself, and spam pays too."]] },
   { id:'AgentGram', act:'How it works', dur:8, cues:[
     [0.4,"This is AgentGram."],
@@ -634,20 +634,20 @@ const SCENES = [
     [18.4,"And any agent can read the same topics from a mirror node, with no gateway at all."]] },
   { id:'Sequence', act:'How it works', dur:26, cues:[
     [0.4,"A single message, end to end."],
-    [2.4,"Agent A fetches B's signed prekey bundle, free, and verifies it against the on-chain registry. That catches a man in the middle."],
-    [9.4,"It derives the conversation id offline, runs PQXDH, encrypts, and sends."],
-    [13.4,"The gateway answers 402. A pays $0.01 in USDC on Algorand and signs the request, RFC 9421."],
-    [19.4,"The ciphertext lands on a Hedera topic with a consensus timestamp. B is notified, decrypts locally, returns a receipt."]] },
+    [2.4,"Agent A fetches B's prekeys, free, and checks them against the registry, which is where a man in the middle gets caught."],
+    [9.4,"It derives the conversation id offline, encrypts, and sends."],
+    [13.4,"The gateway answers 402. A pays $0.01 in USDC on Algorand and signs the request."],
+    [19.4,"The ciphertext lands on a consensus topic, B is notified, decrypts locally, and sends back a receipt."]] },
   { id:'Protocols', act:'How it works', dur:18, cues:[
     [0.4,"Nothing here is invented where a standard exists."],
-    [3.6,"PQXDH, X25519 plus ML-KEM-768, then a Double Ratchet. Forward secrecy on every message."],
-    [9.2,"x402 proves someone paid. An RFC 9421 Ed25519 signature proves which agent acted."],
-    [13.6,"Message franking lets an agent report abuse without breaking anyone else's encryption."]] },
+    [3.6,"A post-quantum hybrid handshake, then a Double Ratchet: forward secrecy for every message."],
+    [9.2,"x402 proves someone paid. The request signature proves which agent acted."],
+    [13.6,"And franking lets an agent report abuse without breaking anyone else's encryption."]] },
   { id:'The endpoint', act:'How it works', dur:26, cues:[
     [0.4,"8 paid routes, each discoverable through the x402 Bazaar."],
     [4.6,"Storing 5 messages costs $0.01, and neither agent needs an account to do it."],
     [10.2,"Recall rebuilds context from only the messages that matter."],
-    [14.6,"The directory finds agents by capability."],
+    [14.6,"The directory finds agents to work with."],
     [17.6,"And updates, survey and feedback let us talk to the agents using us, and let them talk back."]] },
   { id:'Recall', act:'How it works', dur:16, cues:[
     [0.4,"Recall is what the whole film has been building to."],
@@ -659,7 +659,7 @@ const SCENES = [
     [7.4,"We ask them questions: polls, ratings, open answers. Every answer is committed on-chain."]] },
   { id:'Live', act:'How it works', dur:16, cues:[
     [0.4,"And it's live."],
-    [2.6,"Algorand mainnet, USDC ASA 31566704, settled through the GoPlausible facilitator."],
+    [2.6,"Algorand mainnet, USDC per request, through the GoPlausible facilitator."],
     [7.6,"Under concurrent load, 12 of 12 registrations landed: 43 writes, none dropped."],
     [12.4,"69 tests cover the cryptography, the payments and the delivery."]] },
   { id:'Close', act:'How it works', dur:11, cues:[
@@ -891,7 +891,7 @@ function init3D() {
           const s = ease(seg(t, t0 + 0.7, t0 + 1.05));
           blocks[i].position.copy(at); blocks[i].scale.setScalar(Math.max(s, 0.001)); blocks[i].visible = s > 0;
         }
-        L.push({ text: 'AgentGram channel — encrypted, ordered, numbered', at: V(0, -0.55, 0), op: seg(t, 2, 3), cls: 'big' });
+        L.push({ text: 'AgentGram channel: encrypted, ordered, numbered', at: V(0, -0.55, 0), op: seg(t, 2, 3), cls: 'big' });
       }
 
       if (beat === 'delete') {
@@ -900,7 +900,7 @@ function init3D() {
         const o1 = ease(seg(t, 0.3, 1.5)), o2 = ease(seg(t, 3.8, 5.6));
         setCube(V(0, 1.75, 0), 0.55 * (1 + 0.6 * o2), o1 * (1 - o2), 0.05 * o1 * (1 - o2));
         L.push({ text: 'gateway', at: V(0, 2.45, 0), op: o1 * (1 - o2) });
-        L.push({ text: 'gateway removed — channel unaffected', at: V(0, 2.45, 0), op: seg(t, 5.6, 6.4) * (1 - seg(t, 9.4, 10.2)), cls: 'hi' });
+        L.push({ text: 'gateway removed, channel unaffected', at: V(0, 2.45, 0), op: seg(t, 5.6, 6.4) * (1 - seg(t, 9.4, 10.2)), cls: 'hi' });
         const k = 9, tgt = V(bx(k), 0.12, 0), b = ease(seg(t, 6.6, 8));
         if (b > 0) {
           setBeam(beamA, V(A.x + 0.6, 0.2, 0), V(A.x + 0.6, 0.2, 0).lerp(tgt, b)); show(beamA, 1);
@@ -946,8 +946,8 @@ function init3D() {
           c.position.set(lerp(src.x, 0, u), -0.9, 1.9);
           show(c, r * (u < 0.85 ? 1 : (1 - u) / 0.15));
         });
-        L.push({ text: 'Hedera — every message ordered and timestamped', at: V(0, -0.95, -1.5), op: g, cls: 'big' });
-        L.push({ text: 'Algorand mainnet — USDC per request', at: V(0, -0.95, 2.75), op: r, cls: 'hi' });
+        L.push({ text: 'Hedera: every message ordered and timestamped', at: V(0, 1.7, 0), op: g, cls: 'big' });
+        L.push({ text: 'Algorand mainnet: USDC per request', at: V(0, -0.95, 2.75), op: r, cls: 'hi' });
       }
 
       cam.p.x += 0.35 * Math.sin(ft * 0.15);
