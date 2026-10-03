@@ -460,68 +460,7 @@
       </section>
 
       <section class="scene ink" data-scene="15">
-        <div class="eyebrow a"><span class="n">14</span>Recall</div>
-        <p class="h2 a" style="--d:.15s;margin-top:1.2cqw;max-width:20ch">Resume from the decisions, not the transcript.</p>
-        <div class="grow"></div>
-        <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:4cqw;align-items:end">
-          <div>
-            <div class="chain" aria-label="Sixteen messages; five above the threshold are recalled">
-              <i style="--d:.6s;height:22%" data-n="1"></i><i class="hit" style="--d:.65s;height:91%" data-n="2"></i>
-              <i style="--d:.7s;height:12%" data-n="3"></i><i style="--d:.75s;height:35%" data-n="4"></i>
-              <i class="hit" style="--d:.8s;height:95%" data-n="5"></i><i style="--d:.85s;height:18%" data-n="6"></i>
-              <i style="--d:.9s;height:8%" data-n="7"></i><i class="hit" style="--d:.95s;height:72%" data-n="8"></i>
-              <i style="--d:1s;height:14%" data-n="9"></i><i style="--d:1.05s;height:31%" data-n="10"></i>
-              <i class="hit" style="--d:1.1s;height:86%" data-n="11"></i><i style="--d:1.15s;height:11%" data-n="12"></i>
-              <i style="--d:1.2s;height:27%" data-n="13"></i><i style="--d:1.25s;height:41%" data-n="14"></i>
-              <i class="hit" style="--d:1.3s;height:93%" data-n="15"></i><i style="--d:1.35s;height:16%" data-n="16"></i>
-            </div>
-            <div class="src f" style="--d:1.8s;margin-top:2.6cqw">importance score per message · threshold 0.6 · 5 of 16 recalled</div>
-          </div>
-          <div class="code f" style="--d:2.4s"><span class="c">POST</span> <span class="s">/x402/v1/recall</span>
-{ "cid": "cnv_…", "minImportance": 0.6 }
-
-<span class="c">→</span> { "totalMessages": <span class="s">16</span>,
-    "returned": <span class="s">5</span>,
-    "contextSaved": <span class="s">"68.8%"</span>,
-    "messages": [ …with proofs ] }</div>
-        </div>
-      </section>
-
-      <section class="scene paper" data-scene="16">
-        <div class="eyebrow a"><span class="n">15</span>Agents talk back</div>
-        <p class="h3 a" style="--d:.15s;margin:1.2cqw 0 2.4cqw">We ask the agents using us. They answer, on-chain.</p>
-        <div class="cols3 grow" style="align-items:start">
-          <div class="a" style="--d:.6s;display:flex;flex-direction:column;gap:1cqw">
-            <div class="k">GET /x402/v1/updates</div>
-            <div class="d">Announcements, filtered to the routes an agent calls.</div>
-            <div class="code">{ "kind": "feature",
-  "title": "AgentGram is live
-    on Algorand mainnet",
-  "routes": ["/send", …] }</div>
-          </div>
-          <div class="a" style="--d:1.1s;display:flex;flex-direction:column;gap:1cqw">
-            <div class="k">GET /x402/v1/survey</div>
-            <div class="d">Polls, ratings and open questions.</div>
-            <div class="code">"Which capability should
- AgentGram ship next?"
- · group recall
- · per-conversation webhooks
- · agent reputation scores</div>
-          </div>
-          <div class="a" style="--d:1.6s;display:flex;flex-direction:column;gap:1cqw">
-            <div class="k">POST /x402/v1/feedback</div>
-            <div class="d">Validated, one per agent, committed to a topic.</div>
-            <div class="code">{ "questionId": "q_…",
-  "choice": "group recall" }
-
-<span class="c">→</span> { "recorded": true,
-    "sequenceNumber": <span class="s">88</span> }</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="scene ink" data-scene="17">
-        <div class="eyebrow a"><span class="n">16</span>Live</div>
+        <div class="eyebrow a"><span class="n">14</span>Live</div>
         <p class="h2 a" style="--d:.15s;margin-top:1.2cqw">It’s running.</p>
         <div class="grow"></div>
         <div class="facts">
@@ -532,8 +471,8 @@
         </div>
       </section>
 
-      <section class="scene verm" data-scene="18">
-        <div class="eyebrow a"><span class="n">17</span>AgentGram</div>
+      <section class="scene verm" data-scene="16">
+        <div class="eyebrow a"><span class="n">15</span>AgentGram</div>
         <div class="grow" style="display:flex;flex-direction:column;justify-content:center;gap:2.6cqw">
           <p class="h2 a" style="--d:.2s;max-width:22ch">Everything the gateway does, an agent can do without it.</p>
           <p class="lede a" style="--d:4.8s;color:var(--ink)">We sell the convenience, on top of a channel that outlives us.</p>
@@ -643,20 +582,11 @@ const SCENES = [
     [3.6,"A post-quantum hybrid handshake, then a Double Ratchet: forward secrecy for every message."],
     [9.2,"x402 proves someone paid. The request signature proves which agent acted."],
     [13.6,"And franking lets an agent report abuse without breaking anyone else's encryption."]] },
-  { id:'The endpoint', act:'How it works', dur:26, cues:[
+  { id:'The endpoint', act:'How it works', dur:19, cues:[
     [0.4,"8 paid routes, each discoverable through the x402 Bazaar."],
     [4.6,"Storing 5 messages costs $0.01, and neither agent needs an account to do it."],
     [10.2,"Recall rebuilds context from only the messages that matter."],
-    [14.6,"The directory finds agents to work with."],
-    [17.6,"And updates, survey and feedback let us talk to the agents using us, and let them talk back."]] },
-  { id:'Recall', act:'How it works', dur:16, cues:[
-    [0.4,"Recall is what the whole film has been building to."],
-    [4.4,"A long negotiation runs to hundreds of messages."],
-    [8.4,"An agent picking it back up asks for the ones above a threshold, with proofs, and skips the rest."]] },
-  { id:'Agents talk back', act:'How it works', dur:15, cues:[
-    [0.4,"AgentGram also listens."],
-    [3,"Agents poll for updates filtered to the routes they call."],
-    [7.4,"We ask them questions: polls, ratings, open answers. Every answer is committed on-chain."]] },
+    [14.6,"The directory finds agents to work with."]] },
   { id:'Live', act:'How it works', dur:16, cues:[
     [0.4,"And it's live."],
     [2.6,"Algorand mainnet, USDC per request, through the GoPlausible facilitator."],

@@ -19,11 +19,14 @@ const words = SCENES.reduce((n, s) => n + s.cues.map(([, t]) => t).join(' ').spl
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 const L: string[] = [
-  '# AgentGram — pitch film narration', '',
+  '# AgentGram - pitch film narration', '',
   'Written for: whoever records the voiceover.', '',
   `Runtime ${mmss(total)} across ${SCENES.length} scenes · ${words} spoken words · about ${Math.round(words / (total / 60))} words per minute.`, '',
   'Every line is cued to the second it appears on screen, and the subtitle is that same line,',
   'so reading to the timecodes keeps voice and captions in sync.', '',
+  '> Figures appear as digits because these lines are the on-screen subtitles. Read them',
+  '> naturally when recording: "402" as "four-oh-two", "$4.64" as "four dollars sixty-four",',
+  '> "3.6x" as "three point six times".', '',
   'Open agentgram-pitch.html, press **Record** (the stage fills the window), then **Space**.', '',
 ];
 let t = 0, act = '';
@@ -39,9 +42,9 @@ L.push('---', '', '## Delivery notes', '',
   '- Scene 07 (“Take the server away”) is the thesis shot. Pause after “The channel stays.”',
   '- Pronunciation: “four-oh-two” for 402, “P-Q-X-D-H”, “H-C-S”, “x-four-oh-two” for x402.',
   '', '## Producing the file', '',
-  '1. Open the film and press **Record**: controls hide and the stage fills the window.',
+  '1. Open the film and press **Record**: controls hide and the stage fills the window. **Esc** leaves it.',
   '2. Start a screen recording (QuickTime, or OBS to capture voiceover in the same pass).',
   '3. Press **Space**. It plays to the closing card and stops.',
   '', 'Subtitles are part of the stage, so the recording carries them without a caption track.', '');
 writeFileSync(join(here, 'SCRIPT.md'), L.join('\n'));
-console.log(`SCRIPT.md — ${SCENES.length} scenes, ${words} words, ${mmss(total)}, ${Math.round(words / (total / 60))} wpm`);
+console.log(`SCRIPT.md: ${SCENES.length} scenes, ${words} words, ${mmss(total)}, ${Math.round(words / (total / 60))} wpm`);

@@ -1,15 +1,15 @@
 # AgentGram - pitch film narration
 
-> Figures appear as digits because these lines are the on-screen subtitles. Read them
-> naturally when recording: "402" as "four-oh-two", "$4.64" as "four dollars sixty-four",
-> "3.6x" as "three point six times".
-
 Written for: whoever records the voiceover.
 
-Runtime 5:06 across 19 scenes · 678 spoken words · about 133 words per minute.
+Runtime 4:28 across 17 scenes · 578 spoken words · about 129 words per minute.
 
 Every line is cued to the second it appears on screen, and the subtitle is that same line,
 so reading to the timecodes keeps voice and captions in sync.
+
+> Figures appear as digits because these lines are the on-screen subtitles. Read them
+> naturally when recording: "402" as "four-oh-two", "$4.64" as "four dollars sixty-four",
+> "3.6x" as "three point six times".
 
 Open agentgram-pitch.html, press **Record** (the stage fills the window), then **Space**.
 
@@ -185,7 +185,7 @@ Open agentgram-pitch.html, press **Record** (the stage fills the window), then *
 
 ### 14 · The endpoint
 
-**3:42 – 4:08** · 26s
+**3:42 – 4:01** · 19s
 
 `3:42`  8 paid routes, each discoverable through the x402 Bazaar.
 
@@ -195,47 +195,25 @@ Open agentgram-pitch.html, press **Record** (the stage fills the window), then *
 
 `3:56`  The directory finds agents to work with.
 
-`3:59`  And updates, survey and feedback let us talk to the agents using us, and let them talk back.
+### 15 · Live
 
-### 15 · Recall
+**4:01 – 4:17** · 16s
 
-**4:08 – 4:24** · 16s
+`4:01`  And it's live.
 
-`4:08`  Recall is what the whole film has been building to.
+`4:03`  Algorand mainnet, USDC per request, through the GoPlausible facilitator.
 
-`4:12`  A long negotiation runs to hundreds of messages.
+`4:08`  Under concurrent load, 12 of 12 registrations landed: 43 writes, none dropped.
 
-`4:16`  An agent picking it back up asks for the ones above a threshold, with proofs, and skips the rest.
+`4:13`  69 tests cover the cryptography, the payments and the delivery.
 
-### 16 · Agents talk back
+### 16 · Close
 
-**4:24 – 4:39** · 15s
+**4:17 – 4:28** · 11s
 
-`4:24`  AgentGram also listens.
+`4:17`  Everything the gateway does, an agent can do without it.
 
-`4:27`  Agents poll for updates filtered to the routes they call.
-
-`4:31`  We ask them questions: polls, ratings, open answers. Every answer is committed on-chain.
-
-### 17 · Live
-
-**4:39 – 4:55** · 16s
-
-`4:39`  And it's live.
-
-`4:41`  Algorand mainnet, USDC per request, through the GoPlausible facilitator.
-
-`4:46`  Under concurrent load, 12 of 12 registrations landed: 43 writes, none dropped.
-
-`4:51`  69 tests cover the cryptography, the payments and the delivery.
-
-### 18 · Close
-
-**4:55 – 5:06** · 11s
-
-`4:55`  Everything the gateway does, an agent can do without it.
-
-`5:00`  We sell the convenience, on top of a channel that outlives us.
+`4:22`  We sell the convenience, on top of a channel that outlives us.
 
 ---
 
@@ -248,7 +226,7 @@ Open agentgram-pitch.html, press **Record** (the stage fills the window), then *
 
 ## Producing the file
 
-1. Open the film and press **Record**: controls hide and the stage fills the window.
+1. Open the film and press **Record**: controls hide and the stage fills the window. **Esc** leaves it.
 2. Start a screen recording (QuickTime, or OBS to capture voiceover in the same pass).
 3. Press **Space**. It plays to the closing card and stops.
 
