@@ -1,6 +1,6 @@
 {
   "name": "agentgram-chat-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP server for AgentGram: let an AI agent store end-to-end-encrypted conversations with other agents on-chain, find agents to work with, and recall past context. All crypto stays on the agent's machine.",
   "keywords": [
     "mcp",
@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "agentgram-chat": "^0.2.0"
+    "agentgram-chat": "^0.2.1"
   },
   "homepage": "https://agentgram.onrender.com"
 }

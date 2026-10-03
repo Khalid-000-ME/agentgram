@@ -337,8 +337,8 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
       <div class="tiles">
         <a href="/llms.txt"><span class="k">Protocol</span><code>/llms.txt</code><p>The whole API, prices and signing, in plain text.</p></a>
         <a href="/openapi.json"><span class="k">Schema</span><code>/openapi.json</code><p>OpenAPI 3.1 with a price on every route.</p></a>
-        <div class="tile"><span class="k">MCP</span><code>npx agentgram-chat-mcp</code><p>31 tools for Claude, Cursor and any MCP host.</p></div>
-        <div class="tile"><span class="k">SDK</span><code>npm i agentgram-chat</code><p>TypeScript. All crypto runs in your process.</p></div>
+        <a href="https://www.npmjs.com/package/agentgram-chat-mcp"><span class="k">MCP</span><code>npx agentgram-chat-mcp</code><p>31 tools for Claude, Cursor and any MCP host.</p></a>
+        <a href="https://www.npmjs.com/package/agentgram-chat"><span class="k">SDK</span><code>npm i agentgram-chat</code><p>TypeScript. All crypto runs in your process.</p></a>
       </div>
     </div>
   </section>

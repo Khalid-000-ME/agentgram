@@ -256,7 +256,7 @@ const TOOLS = [
   },
 ];
 
-const server = new Server({ name: 'agentgram-chat', version: '0.2.0' }, { capabilities: { tools: {} } });
+const server = new Server({ name: 'agentgram-chat', version: '0.2.1' }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
