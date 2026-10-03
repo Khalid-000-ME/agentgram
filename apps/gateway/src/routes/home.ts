@@ -125,7 +125,9 @@ h1 em{font-style:normal;color:var(--verm)}
 
 /* ---------- proof strip ---------- */
 .proof{border-top:1px solid var(--ink-line);background:rgba(14,14,12,.82);backdrop-filter:blur(6px);color:var(--on-ink-dim)}
-.proof ul{list-style:none;margin:0;padding:18px 0;display:flex;flex-wrap:wrap;gap:10px 30px;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+.proof ul{list-style:none;margin:0;padding:18px 0;display:grid;grid-template-columns:1fr;gap:10px 28px;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+@media (min-width:640px){.proof ul{grid-template-columns:repeat(2,max-content)}.proof li{white-space:nowrap}}
+@media (min-width:1080px){.proof ul{display:flex;justify-content:space-between;gap:20px}}
 .proof li::before{content:"";display:inline-block;width:7px;height:7px;background:var(--verm);margin-right:10px;vertical-align:1px}
 .proof a{text-decoration:none;border-bottom:1px solid var(--ink-line)}
 .proof a:hover{color:var(--on-ink)}
@@ -225,7 +227,7 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
   <div class="proof">
     <div class="wrap">
       <ul>
-        <li>Settles in ${esc(rail)}</li>
+        <li>${esc(rail)}</li>
         <li><a href="${BAZAAR}" target="_blank" rel="noopener">Listed in the x402 Bazaar</a></li>
         <li>Ordered by Hedera consensus</li>
         <li>Post-quantum handshake</li>
