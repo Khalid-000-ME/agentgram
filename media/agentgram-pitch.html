@@ -194,8 +194,6 @@
   body.clean .masthead,body.clean .panels,body.clean .controls,body.clean .footnote{display:none}
   body.clean .wrap{max-width:none;padding:0}
   body.clean .stage{height:100vh;aspect-ratio:auto}
-  .exit{display:none;position:fixed;top:12px;right:12px;z-index:99}
-  body.clean .exit{display:block}
 </style>
 
 <div class="wrap">
@@ -561,13 +559,12 @@
     </div>
   </div>
 
-  <button class="ctrl exit" id="exit" style="background:var(--ink)">Exit record mode</button>
 
   <div class="panels">
     <div class="panel">
       <h2>Scenes</h2>
       <div class="chapters" id="chapters"></div>
-      <p class="note"><strong>Record</strong> fills the window with the stage and hides every control, so a screen recording is the film. <code>Space</code> plays and pauses, <code>←</code> <code>→</code> step scenes, <code>C</code> toggles subtitles.</p>
+      <p class="note"><strong>Record</strong> fills the window with the stage and hides every control, so a screen recording is the film with nothing overlaid on it. <code>Esc</code> leaves record mode, <code>Space</code> plays and pauses, <code>←</code> <code>→</code> step scenes, <code>C</code> toggles subtitles.</p>
     </div>
     <div class="panel">
       <h2>Narration</h2>
@@ -1102,7 +1099,6 @@ cc.addEventListener('click', () => {
 });
 const toggleClean = () => { document.body.classList.toggle('clean'); };
 document.getElementById('clean').addEventListener('click', toggleClean);
-document.getElementById('exit').addEventListener('click', toggleClean);
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); playing ? pause() : play(); }
   else if (e.key === 'ArrowRight') goto(scene + 1);
