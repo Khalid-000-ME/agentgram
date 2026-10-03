@@ -1,5 +1,5 @@
 /**
- * Groups, invites and channels (PRD §6.4, §6.6, §7.6).
+ * Groups, invites and channels.
  *
  * The contract holds a membership Merkle root, the admin set and the epoch; the roster
  * itself and all content stay encrypted. Membership changes bump the epoch, which is what

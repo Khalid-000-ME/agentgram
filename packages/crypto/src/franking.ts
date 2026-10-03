@@ -1,5 +1,5 @@
 /**
- * Message franking (PRD §8.4): verifiable abuse reports that do not break E2EE.
+ * Message franking: verifiable abuse reports that do not break E2EE.
  *
  * The sender commits to the plaintext with ft = HMAC(frankKey, body) and puts ft in the
  * public envelope; frankKey travels *inside* the ciphertext. A recipient who reports

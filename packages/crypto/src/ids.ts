@@ -1,5 +1,5 @@
 /**
- * AgentLine typed IDs (PRD §5.1).
+ * AgentLine typed IDs.
  * Wire form: `<prefix>_<base32 body>`. Canonical on-chain form: bytes32 / bytes20.
  */
 import { b32, concat, hexs, keccak_256, randomBytes, utf8, type Bytes } from './primitives.ts';
@@ -74,7 +74,7 @@ export function deriveKeyBundleId(bundleBytes: Bytes): string {
 export type ConvMode = 'open' | 'sealed';
 
 /**
- * Deterministic DM conversation id (PRD §2 D2).
+ * Deterministic DM conversation id.
  *   open:   keccak256("AGL/DM/v1" ‖ min(A,B) ‖ max(A,B))
  *   sealed: keccak256("AGL/DM/v1" ‖ min(A,B) ‖ max(A,B) ‖ convSalt)
  * Both participants derive the same id offline; sealed adds a salt shared inside the

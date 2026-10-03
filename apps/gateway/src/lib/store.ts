@@ -2,7 +2,7 @@
  * Gateway state: indexer read models, caches and operational records.
  *
  * Everything here is either (a) rebuildable from Hedera + the registry contract, or
- * (b) operational metadata we are allowed to hold (PRD §4.1 "Indexer", S12). No
+ * (b) operational metadata we are allowed to hold. No
  * plaintext, no private keys, no ratchet state ever lands in this store.
  *
  * Backed by a single JSON snapshot on disk — deliberately simple and inspectable; the

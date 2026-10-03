@@ -1,9 +1,9 @@
 /**
- * x402 wire types (PRD §9.1).
+ * x402 wire types.
  *
  * This implementation speaks both header generations so that off-the-shelf clients work:
  *   - v1 (widely deployed):  request `X-PAYMENT`,           response `X-PAYMENT-RESPONSE`
- *   - v2 (PRD wording):      request `PAYMENT-SIGNATURE`,   response `PAYMENT-RESPONSE`,
+ *   - v2:                   request `PAYMENT-SIGNATURE`,   response `PAYMENT-RESPONSE`,
  *                            challenge echoed in `PAYMENT-REQUIRED`
  * The 402 body always carries the machine-readable `accepts` array, which is what agents
  * and the x402 client libraries actually parse.

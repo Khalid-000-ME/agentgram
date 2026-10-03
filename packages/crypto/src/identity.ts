@@ -1,5 +1,5 @@
 /**
- * Agent identity, devices and prekey bundles (PRD §5.1, §7.1, §7.2).
+ * Agent identity, devices and prekey bundles.
  * Private keys live only in the agent's process — never sent to the gateway (S1).
  */
 import { ml_kem768 } from '@noble/post-quantum/ml-kem';
@@ -83,7 +83,7 @@ export function identityFromStore(s: KeyStoreState): IdentityKeys {
 const SPK_CTX = utf8.enc('AGL/SPK/v1');
 const PQPK_CTX = utf8.enc('AGL/PQPK/v1');
 
-/** Rotate the signed prekey (SDK does this weekly — PRD §7.7). */
+/** Rotate the signed prekey (SDK does this weekly). */
 export function rotateSignedPrekey(store: KeyStoreState): KeyStoreState {
   const id = identityFromStore(store);
   const sk = x25519.utils.randomPrivateKey();
@@ -106,7 +106,7 @@ export function generateOneTimePrekeys(store: KeyStoreState, count = 100): Array
   return out;
 }
 
-/** Post-quantum (ML-KEM-768) prekeys for the PQXDH hybrid handshake (PRD D1/S4). */
+/** Post-quantum (ML-KEM-768) prekeys for the PQXDH hybrid handshake. */
 export function generatePqPrekeys(store: KeyStoreState, count = 20): Array<{ id: number; pk: string; sig: string }> {
   const id = identityFromStore(store);
   const out: Array<{ id: number; pk: string; sig: string }> = [];
@@ -160,7 +160,7 @@ export function publishablePrekeys(
   };
 }
 
-/** Verify a fetched bundle against the agent's on-chain identity key (PRD §7.2 step 2). */
+/** Verify a fetched bundle against the agent's on-chain identity key. */
 export function verifyPrekeyBundle(bundle: PrekeyBundle, expectedEd25519Pk?: string): void {
   const ik = b64.dec(bundle.ed25519Pk);
   if (deriveAgentId(ik) !== bundle.agentId) throw new Error('bundle: agentId does not match identity key');
@@ -176,7 +176,7 @@ export function verifyPrekeyBundle(bundle: PrekeyBundle, expectedEd25519Pk?: str
 }
 
 /**
- * Safety number / security code (PRD §6.9): a short fingerprint of both identity keys
+ * Safety number / security code: a short fingerprint of both identity keys
  * that two agents can compare out of band to detect a MITM key swap.
  */
 export function safetyNumber(myEd25519Pk: Bytes, theirEd25519Pk: Bytes): string {

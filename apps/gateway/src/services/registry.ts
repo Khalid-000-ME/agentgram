@@ -1,5 +1,5 @@
 /**
- * Registry service — the on-chain source of truth for identity and mappings (PRD §5.2).
+ * Registry service — the on-chain source of truth for identity and mappings.
  *
  * Writes are relayed to the AgentLineRegistry contract (Base Sepolia by default) and
  * mirrored into the local snapshot so reads stay fast while a tx confirms. When no

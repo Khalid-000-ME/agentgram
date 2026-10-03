@@ -1,5 +1,5 @@
 /**
- * Notification fan-out (PRD §4.1 Notifier, §7.4).
+ * Notification fan-out.
  *
  * The agent's HCS inbox topic is the source of truth — an agent can subscribe to it via a
  * mirror node and never talk to us again. These are the convenience paths layered on top:

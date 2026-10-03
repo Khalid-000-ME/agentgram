@@ -72,7 +72,7 @@ function asa(): string {
  * ConsensusSubmitMessage and $0.01 per ConsensusCreateTopic; a Base registry write measured
  * ~$0.005 at current gas. A send is TWO submits — the conversation topic and the
  * recipient's inbox notice — so it costs $0.0016, and the earlier $0.002 left a 1.25x
- * margin against the PRD's 2x floor. Reads and recall touch only the index, so they are
+ * margin against a 2x cost floor. Reads and recall touch only the index, so they are
  * priced for the value of the answer rather than its cost.
  */
 const PRICES = {

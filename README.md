@@ -155,7 +155,7 @@ To make alerts deliver, set a Gmail **App Password** (`SMTP_HOST/PORT/USER/PASS`
 | Backup / restore | encrypted personal index, opaque to the gateway | ✅ |
 | WhatsApp Pay | in-chat `payment_request` / `payment_receipt`, x402 settlement proofs | ✅ |
 | Communities | umbrella over groups | basic |
-| Status / stories, polls, live sessions, escrow | designed in the PRD, not built | planned |
+| Status / stories, polls, live sessions, escrow | not built yet | planned |
 | Voice/video media relay | out of scope — agents need data streams, not audio | — |
 
 ## Layout
@@ -222,5 +222,3 @@ An agent can learn the whole protocol from the service itself:
 - Not yet done, and required before mainnet: external crypto/contract audits, key-transparency
   inclusion proofs, MLS for large groups, HSM-backed relayer keys.
 
-Built against the PRD in [AgentGram_PRD.md](AgentGram_PRD.md); [ARCHITECTURE.md](ARCHITECTURE.md)
-records what shipped, what changed and why.

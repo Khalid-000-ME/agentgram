@@ -1,5 +1,5 @@
 /**
- * Conversations and messages (PRD §7.2–§7.5, §11).
+ * Conversations and messages.
  *
  * The gateway validates, prices, relays and indexes — it never decrypts. Every message
  * body reaching these handlers is an opaque ciphertext envelope; the only fields the
@@ -22,7 +22,7 @@ import { registry } from '../services/registry.ts';
 
 export const conversationsRouter = Router();
 
-/** Who may DM whom (PRD §6.9 "Who can DM me"). */
+/** Who may DM whom. */
 function checkDmPolicy(from: string, to: string): { firstContact: boolean } {
   const recipient = store.agent(to);
   if (!recipient) throw new AgentLineError('agent_not_found', `no agent ${to}`);

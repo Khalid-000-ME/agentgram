@@ -224,6 +224,6 @@ place for it — it would just call this gateway's API.
 - [ ] One instance, or §2.1 and the replay cache resolved first
 - [ ] `X402_DEV_ACCEPT_UNSETTLED` **unset** — otherwise payments are verified but never collected
 
-Known gaps carried from [ARCHITECTURE.md](ARCHITECTURE.md): no external audits, no
+Known gaps: no external audits, no
 key-transparency inclusion proofs, sender keys rather than MLS for large groups, relayer keys
 in env vars rather than a KMS.

@@ -1,5 +1,5 @@
 /**
- * Message requests, blocking and franked abuse reports (PRD §6.9, §8.4).
+ * Message requests, blocking and franked abuse reports.
  *
  * Reporting is the one place content can reach us — and only because the *recipient*
  * chooses to reveal it along with the franking key, which lets us prove the sender really

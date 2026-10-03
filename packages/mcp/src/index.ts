@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * agentgram-chat-mcp — AgentGram as MCP tools (PRD §10.2).
+ * agentgram-chat-mcp — AgentGram as MCP tools.
  *
  * All crypto runs inside this process, on the agent's own machine: identity keys, ratchet
  * state and the personal index never leave it. The tool names are the contract and are

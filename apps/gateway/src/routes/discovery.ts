@@ -1,5 +1,5 @@
 /**
- * Discovery surfaces (PRD §10.1) — how an agent finds out how to use AgentGram with no
+ * Discovery surfaces — how an agent finds out how to use AgentGram with no
  * human in the loop: a landing page, a service manifest, an A2A agent card, an OpenAPI
  * document with prices attached, an x402 resource list and an llms.txt written for a model
  * that has never seen this API.

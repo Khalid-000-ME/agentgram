@@ -1,5 +1,5 @@
 /**
- * x402 price table (PRD §9.2). Amounts are USDC (6 decimals) as decimal strings.
+ * x402 price table. Amounts are USDC (6 decimals) as decimal strings.
  * Config-driven so fees can be recalibrated against real chain costs (R2).
  */
 export interface PriceRule {
@@ -20,7 +20,7 @@ export const PRICES: Record<string, PriceRule> = {
   'PUT /v1/prekeys':                    { price: '0.01',   description: 'Publish a prekey bundle' },
   'POST /v1/conversations':             { price: '0.05',   description: 'Open a conversation (topic creation)' },
   // A send is two HCS submits (conversation topic + recipient inbox notice) at $0.0008
-  // each, so $0.0016 of infrastructure; priced above the 2x floor the PRD sets.
+  // each, so $0.0016 of infrastructure; priced above a 2x cost floor.
   'POST /v1/messages':                  { price: '0.005',  perKB: '0.0005', description: 'Send a message to a contact' },
   'POST /v1/messages:first-contact':    { price: '0.01',   perKB: '0.0005', description: 'First message to a non-contact (anti-spam stamp)' },
   'POST /v1/receipts':                  { price: '0.0002', description: 'Batched delivery/read receipts' },

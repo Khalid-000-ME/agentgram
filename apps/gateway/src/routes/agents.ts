@@ -1,5 +1,5 @@
 /**
- * Identity routes (PRD §11 "Identity", §7.1).
+ * Identity routes.
  *
  * Registration is the only zero-human-step onboarding path: an agent needs a wallet that
  * can pay x402 and a keypair it generated itself. No API keys, no signup form. The gateway
@@ -333,7 +333,7 @@ agentsRouter.post('/agents/:agentId/rotate', requireSignature(), handler<AuthedR
   res.json({ agentId: agent.agentId, keyEpoch: agent.keyEpoch, warning: 'peers must re-verify the safety number' });
 }));
 
-/** Tombstone + crypto-shred (PRD D6): ciphertext stays on-chain but becomes unreadable. */
+/** Tombstone + crypto-shred: ciphertext stays on-chain but becomes unreadable. */
 agentsRouter.delete('/agents/:agentId', requireSignature(), handler<AuthedRequest>(async (req, res) => {
   const agent = store.agent(req.params.agentId);
   if (!agent) throw new AgentLineError('agent_not_found', `no agent ${req.params.agentId}`);

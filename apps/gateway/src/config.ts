@@ -78,7 +78,7 @@ export const config = {
       (process.env.HEDERA_NETWORK === 'mainnet'
         ? 'https://mainnet.mirrornode.hedera.com'
         : 'https://testnet.mirrornode.hedera.com'),
-    /** Number of shared topics used for sealed DMs (PRD §5.4). */
+    /** Number of shared topics used for sealed DMs. */
     sealedShards: Number(process.env.HEDERA_SEALED_SHARDS ?? 4),
   },
 

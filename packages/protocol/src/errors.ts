@@ -1,5 +1,5 @@
 /**
- * RFC 9457 problem+json error model with stable codes (PRD §10.4).
+ * RFC 9457 problem+json error model with stable codes.
  */
 export const ERROR_CODES = [
   'payment_required', 'payment_invalid', 'signature_invalid', 'nonce_replayed',

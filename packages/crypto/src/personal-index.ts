@@ -1,5 +1,5 @@
 /**
- * Encrypted personal index (PRD §5.6).
+ * Encrypted personal index.
  *
  * Contacts, sealed conversation list, broadcast lists, labels, pins, mutes, archive,
  * starred messages and the block list — encrypted with a key derived from the agent's
@@ -70,7 +70,7 @@ export function openIndex(identitySecret: Bytes, blob: string): PersonalIndex {
   return JSON.parse(utf8.dec(aeadOpen(indexKey(identitySecret), b64.dec(blob)))) as PersonalIndex;
 }
 
-/** HMAC-blinded conversation tag for sealed notifications (PRD §7.4). */
+/** HMAC-blinded conversation tag for sealed notifications. */
 export function inboxNotifyKey(identitySecret: Bytes): Bytes {
   return kdf(identitySecret, 'AGL/inbox-notify/v1');
 }

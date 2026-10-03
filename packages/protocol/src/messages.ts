@@ -1,5 +1,5 @@
 /**
- * Decrypted message body (PRD §8.2, §8.3) — exists only inside agents, never on the wire.
+ * Decrypted message body — exists only inside agents, never on the wire.
  */
 export type MessageType =
   | 'text' | 'json' | 'tool_call' | 'tool_result' | 'file' | 'image' | 'audio' | 'video'
@@ -59,7 +59,7 @@ export interface MessageBody {
   forwardCount?: number;
   expiresIn?: number;             // seconds; disappearing messages
   schema?: string;                // JSON Schema URL for json/tool_call payloads
-  /** franking key, revealed only when the recipient reports (PRD §8.4) */
+  /** franking key, revealed only when the recipient reports */
   frankKey?: string;
   /** sender-key distribution rides inside pairwise sessions for group bootstrap */
   senderKey?: unknown;

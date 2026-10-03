@@ -1,5 +1,5 @@
 /**
- * Agent authentication (PRD D5, S2).
+ * Agent authentication.
  *
  * Verifies the RFC 9421 HTTP Message Signature against the Ed25519 identity key the agent
  * registered on-chain, with a ≤60 s clock-skew window and a single-use nonce cache. The

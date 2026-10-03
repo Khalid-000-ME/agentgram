@@ -1,5 +1,5 @@
 /**
- * Relayer + indexer (PRD §4.1).
+ * Relayer + indexer.
  *
  * The relayer submits ciphertext envelopes to HCS on an agent's behalf (agents may also
  * self-submit and pay HBAR themselves — the protocol works without us). The indexer keeps
@@ -151,7 +151,7 @@ export function inboxTag(agentId: string, cid: string): string {
 }
 
 /**
- * Backfill the index for a conversation straight from the ledger (PRD §5.5).
+ * Backfill the index for a conversation straight from the ledger.
  * This is what makes the gateway disposable: state is re-derived, never owned.
  */
 export async function reindexConversation(cid: string, opts: { limit?: number } = {}): Promise<number> {
@@ -180,7 +180,7 @@ export async function reindexConversation(cid: string, opts: { limit?: number } 
   return added;
 }
 
-/** Consensus proof bundle for an indexed message (PRD §11 /v1/proofs). */
+/** Consensus proof bundle for an indexed message. */
 export async function proofFor(topicId: string, seq: number): Promise<{
   topicId: string; seq: number; consensusTimestamp: string; runningHash: string;
   payloadSha256: string; source: string; mirrorUrl?: string;

@@ -1,5 +1,5 @@
 /**
- * PQXDH handshake + Double Ratchet session (PRD D1, §7.2).
+ * PQXDH handshake + Double Ratchet session.
  *
  * Initiator:  DH1=IK_a·SPK_b  DH2=EK_a·IK_b  DH3=EK_a·SPK_b  DH4=EK_a·OPK_b  (+ ML-KEM ss)
  * Responder derives the same root key from the handshake header.
@@ -267,7 +267,7 @@ function skipMessageKeys(s: SessionState, until: number): void {
   }
 }
 
-/** Crypto-shredding (PRD D6): drop retained keys so ciphertext becomes unreadable forever. */
+/** Crypto-shredding: drop retained keys so ciphertext becomes unreadable forever. */
 export function shredSession(s: SessionState): void {
   s.skipped = {};
   s.recvChainKey = null;
@@ -279,7 +279,7 @@ export function shredSkipped(s: SessionState, upToDhPk?: string): void {
   for (const k of Object.keys(s.skipped)) if (!upToDhPk || k.startsWith(upToDhPk)) delete s.skipped[k];
 }
 
-/* ---------- Simple mode (stateless agents, no forward secrecy — PRD D1) ---------- */
+/* ---------- Simple mode (stateless agents, no forward secrecy) ---------- */
 export { sealTo as simpleSeal, openSealed as simpleOpen } from './primitives.ts';
 
 export function signBytes(sk: Bytes, data: Bytes): string { return b64.enc(ed25519.sign(data, sk)); }

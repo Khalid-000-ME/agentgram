@@ -1,5 +1,5 @@
 /**
- * Media uploads, inbox streaming, billing and status (PRD §6.10, §7.4, §9.3, §15).
+ * Media uploads, inbox streaming, billing and status.
  */
 import { Router } from 'express';
 import { createHash, randomBytes } from 'node:crypto';
@@ -128,7 +128,7 @@ miscRouter.get('/billing/balance', requireSignature(), handler<AuthedRequest>(as
 }));
 
 /**
- * Prepaid credits (PRD §9.3): one x402 payment buys a balance, so a high-volume agent
+ * Prepaid credits: one x402 payment buys a balance, so a high-volume agent
  * avoids per-message settlement latency.
  */
 miscRouter.post(

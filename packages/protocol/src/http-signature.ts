@@ -1,5 +1,5 @@
 /**
- * HTTP Message Signatures, RFC 9421 (PRD D5, S2).
+ * HTTP Message Signatures, RFC 9421.
  *
  * x402 proves that *someone paid*; it does not prove *which agent* is acting. Every
  * state-changing request therefore also carries an Ed25519 signature over the request

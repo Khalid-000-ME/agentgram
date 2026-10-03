@@ -6,7 +6,7 @@ pragma solidity ^0.8.24;
  * @notice On-chain identity, key directory, handles, conversations, groups and channels
  *         for AgentLine ("WhatsApp for agents").
  *
- * Design notes (see PRD §5):
+ * Design notes:
  *  - Only small, rarely-written state lives here. Message ciphertext goes to Hedera
  *    Consensus Service topics; this contract stores the mappings that let any agent
  *    re-derive a conversation without trusting the gateway.
@@ -218,7 +218,7 @@ contract AgentLineRegistry {
 
     /**
      * @notice Rotate identity keys. Requires the owner ("guardian") address, never a
-     *         relayer alone, because key substitution is the core MITM risk (PRD §7.7).
+     *         relayer alone, because key substitution is the core MITM risk.
      */
     function rotateKeys(bytes32 agentId, bytes32 newEd25519, bytes32 newX25519) external {
         Agent storage a = agents[agentId];
@@ -230,7 +230,7 @@ contract AgentLineRegistry {
         emit KeysRotated(agentId, a.keyEpoch, newEd25519, newX25519);
     }
 
-    /// Tombstone: the ciphertext on HCS stays, but keys are shredded off-chain (PRD D6).
+    /// Tombstone: the ciphertext on HCS stays, but keys are shredded off-chain.
     function tombstoneAgent(bytes32 agentId) external onlyAgentController(agentId) {
         Agent storage a = agents[agentId];
         a.status = uint8(Status.DELETED);
@@ -315,7 +315,7 @@ contract AgentLineRegistry {
 
     /**
      * @param a,b participants — pass bytes32(0) for both in sealed mode so the public
-     *            record reveals no social graph (PRD §5.3).
+     *            record reveals no social graph.
      */
     function openConversation(
         bytes32 cid,

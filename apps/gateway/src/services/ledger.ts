@@ -1,5 +1,5 @@
 /**
- * Consensus ledger abstraction (PRD D3, §4.1 Relayer).
+ * Consensus ledger abstraction.
  *
  * Messages and inbox notices go to Hedera Consensus Service topics: fixed low fees,
  * total ordering, consensus timestamps, free public reads from mirror nodes.
@@ -332,7 +332,7 @@ export async function resolveOperatorKey(sdk: any, accountId: string, raw: strin
 
 export const CHUNK_PAYLOAD = 900;
 
-/** Split oversized payloads across consecutive HCS messages (PRD §6.2 "Large payloads"). */
+/** Split oversized payloads across consecutive HCS messages. */
 export function chunkPayload(payload: Uint8Array, max = CHUNK_PAYLOAD): Uint8Array[] {
   if (payload.length <= max) return [payload];
   const chunks: Uint8Array[] = [];

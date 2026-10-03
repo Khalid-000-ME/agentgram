@@ -1,5 +1,5 @@
 /**
- * On-chain envelope (PRD §8.1) — the only thing that ever reaches HCS.
+ * On-chain envelope — the only thing that ever reaches HCS.
  *
  * Encoded as CBOR to stay under the ~1 KB single-transaction budget. Contains no
  * plaintext: `ct` is the AEAD ciphertext, `hdr` the ratchet header, `hs` the optional

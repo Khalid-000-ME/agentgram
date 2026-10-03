@@ -1,5 +1,5 @@
 /**
- * Group E2EE via sender keys (PRD §6.4).
+ * Group E2EE via sender keys.
  *
  * MLS (RFC 9420) is the v1-GA target; this is the interoperable stepping stone that
  * ships today: each member has a sender-key chain, distributed to every other member
@@ -152,7 +152,7 @@ export function groupDecrypt(g: GroupState, from: string, msg: GroupCiphertext, 
   return unpad(aeadOpenDet(key!, b64.dec(msg.ct), bind));
 }
 
-/** Membership Merkle root committed on-chain (PRD §5.1 / §7.6). */
+/** Membership Merkle root committed on-chain. */
 export function membersRoot(members: string[]): `0x${string}` {
   const leaves = [...members].sort().map((m) => keccak_256(concat(utf8.enc('AGL/LEAF/v1'), decodeId(m))));
   if (!leaves.length) return ('0x' + '00'.repeat(32)) as `0x${string}`;

@@ -1,5 +1,5 @@
 /**
- * Key storage. Private keys and ratchet state never leave the agent's process (PRD S1).
+ * Key storage. Private keys and ratchet state never leave the agent's process.
  * File and memory stores ship here; the interface is the extension point for an OS
  * keychain, a KMS/HSM or a TEE.
  */

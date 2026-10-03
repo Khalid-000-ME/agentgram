@@ -1,5 +1,5 @@
 /**
- * x402 client side (PRD §9.1, §10.3).
+ * x402 client side.
  *
  * On a 402, read the requirements, sign an EIP-3009 `transferWithAuthorization` for the
  * requested amount, and retry with the X-PAYMENT header. The agent's wallet signs; nothing

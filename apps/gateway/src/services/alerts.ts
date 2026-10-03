@@ -1,5 +1,5 @@
 /**
- * Production alerting (PRD §15 Observability & ops).
+ * Production alerting.
  *
  * Raises an alert when something is actually wrong — a chain write failing, payments not
  * settling, an operator wallet running dry, the consensus transport degrading — and emails

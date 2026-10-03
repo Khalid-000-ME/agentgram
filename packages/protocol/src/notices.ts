@@ -1,5 +1,5 @@
 /**
- * Inbox notices (PRD §7.4) — the tiny, metadata-minimal records published to an agent's
+ * Inbox notices — the tiny, metadata-minimal records published to an agent's
  * HCS inbox topic. Subscribing to that topic via a mirror node is the trustless
  * notification path; SSE/WS/webhook are conveniences over the same data.
  */

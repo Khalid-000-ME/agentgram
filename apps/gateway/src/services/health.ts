@@ -1,5 +1,5 @@
 /**
- * Periodic health checks (PRD §15).
+ * Periodic health checks.
  *
  * Watches the things that silently stop a paid, on-chain service: an operator account out
  * of HBAR so no message can be submitted, a relayer out of gas so no registry write lands,

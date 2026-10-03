@@ -1,5 +1,5 @@
 /**
- * AgentGram gateway (PRD §4).
+ * AgentGram gateway.
  *
  * Stateless HTTP surface in front of Hedera Consensus Service and the registry contract:
  * x402 pricing, RFC 9421 agent authentication, validation, relaying, indexing and

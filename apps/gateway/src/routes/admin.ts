@@ -1,5 +1,5 @@
 /**
- * Operator console API (PRD §15).
+ * Operator console API.
  *
  * Powers the UI at /ui: health, alert configuration and history, a one-click alerting
  * toggle, and a server-side end-to-end test so the whole stack can be exercised from a

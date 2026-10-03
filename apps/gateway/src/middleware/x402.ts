@@ -1,5 +1,5 @@
 /**
- * x402 payment middleware (PRD §9).
+ * x402 payment middleware.
  *
  * Flow: an unpaid call gets `402` with machine-readable payment requirements; the agent
  * retries with a signed EIP-3009 `transferWithAuthorization` authorization; we verify it
@@ -7,7 +7,7 @@
  * facilitator or directly with our own settler key — and return the settlement proof.
  *
  * Header compatibility: request payloads are read from `X-PAYMENT` (widely deployed) or
- * `PAYMENT-SIGNATURE` (PRD wording); proofs go back in both response header names.
+ * `PAYMENT-SIGNATURE`; proofs go back in both response header names.
  */
 import type { NextFunction, Request, Response } from 'express';
 import { createPublicClient, createWalletClient, erc20Abi, http, parseAbi, verifyTypedData, type Address, type Hex } from 'viem';
@@ -82,7 +82,7 @@ export interface PaymentContext {
   amount?: string;
   /** an agent whose prepaid credits may cover this call */
   agentId?: string;
-  /** a business agent sponsoring inbound messages to itself (PRD §9.3) */
+  /** a business agent sponsoring inbound messages to itself */
   sponsorAgentId?: string;
 }
 
