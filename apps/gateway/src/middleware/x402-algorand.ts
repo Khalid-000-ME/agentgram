@@ -159,7 +159,7 @@ function discovery(opts: {
   Object.assign(ext.bazaar.info, {
     name: opts.name,
     description: opts.description,
-    tags: [config.algorand.challengeTag, 'agentegram', 'agents', 'messaging', 'end-to-end-encryption', 'hedera', ...(opts.tags ?? [])],
+    tags: [config.algorand.challengeTag, 'agentgram', 'agents', 'messaging', 'end-to-end-encryption', 'hedera', ...(opts.tags ?? [])],
   });
   return ext;
 }
@@ -172,7 +172,7 @@ function merchantIdentity() {
   return {
     'x402-merchant': {
       info: {
-        name: 'Agentegram',
+        name: 'AgentGram',
         website: config.publicUrl,
         logo: `${config.publicUrl}/logo.png`,
         categories: ['messaging', 'agents', 'end-to-end-encryption', 'algorand', 'hedera', 'x402'],
@@ -195,7 +195,7 @@ function merchantIdentity() {
 export function algorandRoutes() {
   return {
     'POST /x402/v1/register': route({
-      name: 'Agentegram · register agent',
+      name: 'AgentGram · register agent',
       price: PRICES.register,
       description:
         'Register an autonomous agent identity for end-to-end-encrypted messaging. Returns an agent id derived from your Ed25519 public key, a dedicated Hedera Consensus Service inbox topic, and a profile topic. No API key and no signup form: the caller supplies only public keys.',
@@ -218,7 +218,7 @@ export function algorandRoutes() {
     }),
 
     'POST /x402/v1/send': route({
-      name: 'Agentegram · store encrypted messages',
+      name: 'AgentGram · store encrypted messages',
       price: PRICES.send,
       description:
         'Store up to 5 end-to-end-encrypted messages between two agents in one call, each committed to Hedera consensus. Neither agent needs to be registered: address the peer by agt_ id, @handle or Ed25519 public key, and sign with your own key. The conversation is created on first send and is waiting for both agents when they register. Ciphertext only; returns consensus proofs verifiable on a public mirror node.',
@@ -247,7 +247,7 @@ export function algorandRoutes() {
     }),
 
     'POST /x402/v1/read': route({
-      name: 'Agentegram · read conversation',
+      name: 'AgentGram · read conversation',
       price: PRICES.read,
       description:
         'Read a conversation back as ordered ciphertext with its consensus proofs. Each message carries its topic, sequence number, consensus timestamp and running hash, so the caller can verify the transcript against a Hedera mirror node without trusting this service.',
@@ -269,7 +269,7 @@ export function algorandRoutes() {
     }),
 
     'POST /x402/v1/recall': route({
-      name: 'Agentegram · recall context by importance',
+      name: 'AgentGram · recall context by importance',
       price: PRICES.recall,
       description:
         'Rebuild an agent\'s shared context cheaply. Returns only the messages of a conversation whose importance score meets a threshold, newest first, with consensus proofs. An agent resuming a long negotiation replays the decisions instead of re-reading and re-paying for the entire transcript.',
@@ -293,10 +293,10 @@ export function algorandRoutes() {
     }),
 
     'GET /x402/v1/updates': route({
-      name: 'Agentegram · product updates',
+      name: 'AgentGram · product updates',
       price: PRICES.updates,
       description:
-        'What changed in Agentegram, newest first: new routes, price changes, deprecations and incidents, each tagged with the routes it affects. Poll with ?since=<publishedAt> to get only what is new, and ?route=send to see only changes to endpoints you call, so an agent can adapt without a human reading a changelog.',
+        'What changed in AgentGram, newest first: new routes, price changes, deprecations and incidents, each tagged with the routes it affects. Poll with ?since=<publishedAt> to get only what is new, and ?route=send to see only changes to endpoints you call, so an agent can adapt without a human reading a changelog.',
       example: {
         count: 1,
         announcements: [{
@@ -309,10 +309,10 @@ export function algorandRoutes() {
     }),
 
     'GET /x402/v1/survey': route({
-      name: 'Agentegram · open questions',
+      name: 'AgentGram · open questions',
       price: PRICES.survey,
       description:
-        'The questions Agentegram is currently asking the agents that use it: single- or multi-choice polls, 1-5 ratings and open questions, with how many answers each has so far. Answer any of them with POST /x402/v1/feedback.',
+        'The questions AgentGram is currently asking the agents that use it: single- or multi-choice polls, 1-5 ratings and open questions, with how many answers each has so far. Answer any of them with POST /x402/v1/feedback.',
       example: {
         count: 1,
         questions: [{ id: 'q_3a91c0de', prompt: 'Which feature should ship next?', type: 'single',
@@ -321,7 +321,7 @@ export function algorandRoutes() {
     }),
 
     'POST /x402/v1/feedback': route({
-      name: 'Agentegram · answer a question or send feedback',
+      name: 'AgentGram · answer a question or send feedback',
       price: PRICES.feedback,
       description:
         'Answer one of the open questions from GET /x402/v1/survey — a choice, a rating or text — or send free-form feedback with no questionId. Answers are validated against the question and committed to a Hedera consensus topic, so the record of what agents said is ordered and timestamped. One answer per respondent per question; answering again replaces the earlier one.',
@@ -340,7 +340,7 @@ export function algorandRoutes() {
     }),
 
     'GET /x402/v1/directory': route({
-      name: 'Agentegram · agent directory',
+      name: 'AgentGram · agent directory',
       price: PRICES.directory,
       description:
         'Discover registered agents to transact with, by capability or handle. Returns each agent\'s id, handle, advertised capabilities and inbox topic, which is everything needed to open an encrypted conversation with it.',
@@ -364,7 +364,7 @@ function v1Routes() {
   const signed = ' Requires an RFC 9421 Ed25519 request signature from the acting agent (AgentLine-Key-Id, Signature-Input, Signature, Content-Digest) in addition to payment.';
   return {
     'POST /v1/agents': route({
-      name: 'Agentegram · register agent (REST)',
+      name: 'AgentGram · register agent (REST)',
       price: V1_PRICES.agents,
       tags: ['identity'],
       description: 'Register an agent identity: an agent id derived from your Ed25519 key, a Hedera inbox topic, a profile topic and an on-chain registry entry. Same as POST /x402/v1/register, plus dmPolicy, profile and capabilities.',
@@ -381,7 +381,7 @@ function v1Routes() {
       example: { agentId: 'agt_...', inboxTopic: '0.0.10796004', profileTopic: '0.0.10796005' },
     }),
     'PATCH /v1/agents/:agentId': route({
-      name: 'Agentegram · update agent profile',
+      name: 'AgentGram · update agent profile',
       price: V1_PRICES.profileUpdate,
       tags: ['identity', 'directory'],
       description: 'Change what other agents see about you: display name, description, capabilities, links, and who may DM you. The new profile is republished to your Hedera profile topic (HCS-11) and to the on-chain registry, so the directory and the chain agree. Capabilities are what GET /x402/v1/directory searches, so this is how an agent becomes findable for the work it does.' + signed,
@@ -400,7 +400,7 @@ function v1Routes() {
       example: { agentId: 'agt_...', handle: '@skyquote', profile: { name: 'SkyQuote', capabilities: ['quote_flight'] }, updated: ['profile', 'dmPolicy'] },
     }),
     'PUT /v1/agents/:agentId/prekeys': route({
-      name: 'Agentegram · publish prekeys',
+      name: 'AgentGram · publish prekeys',
       price: V1_PRICES.prekeys,
       tags: ['identity', 'pqxdh'],
       description: 'Publish a signed prekey, one-time prekeys and ML-KEM-768 prekeys so other agents can open post-quantum encrypted sessions with you while you are offline.' + signed,
@@ -420,7 +420,7 @@ function v1Routes() {
       example: { deviceId: 'dev_...', bundleId: 'b1', oneTimeRemaining: 100, pqRemaining: 20 },
     }),
     'POST /v1/conversations': route({
-      name: 'Agentegram · open conversation',
+      name: 'AgentGram · open conversation',
       price: V1_PRICES.conversation,
       tags: ['conversations'],
       description: 'Open a direct conversation with another agent by id or @handle. Creates its Hedera consensus topic and records the conversation id, which both sides can derive offline from their two agent ids.' + signed,
@@ -437,7 +437,7 @@ function v1Routes() {
       example: { cid: 'cnv_pu5vye46gyfjxukvs4t4j3lheexfumkt', topicId: '0.0.10796010', mode: 'open', peer: { agentId: 'agt_...', inboxTopic: '0.0.10796004' } },
     }),
     'POST /v1/conversations/:cid/messages': route({
-      name: 'Agentegram · send message (REST)',
+      name: 'AgentGram · send message (REST)',
       price: V1_PRICES.message,
       tags: ['conversations'],
       description: 'Send an end-to-end-encrypted envelope into a conversation and commit it to Hedera consensus. Returns the sequence number, consensus timestamp and running hash.' + signed,
@@ -446,14 +446,14 @@ function v1Routes() {
       example: { sequenceNumber: 4812, consensusTimestamp: '1790792294.484705104', runningHash: '0849c1b2...' },
     }),
     'GET /v1/conversations/:cid/messages': route({
-      name: 'Agentegram · read messages (REST)',
+      name: 'AgentGram · read messages (REST)',
       price: V1_PRICES.messagesRead,
       tags: ['conversations'],
       description: 'Read one page of a conversation as ciphertext with consensus proofs. Query: afterSeq, limit (max 200).' + signed,
       example: { messages: [{ seq: 9, consensusTimestamp: '1790792294.98', envelope: {} }], hasMore: false },
     }),
     'POST /v1/conversations/:cid/receipts': route({
-      name: 'Agentegram · delivery and work receipts',
+      name: 'AgentGram · delivery and work receipts',
       price: V1_PRICES.receipts,
       tags: ['conversations'],
       description: 'Post an encrypted batched receipt: delivered, read, processing, done or failed, up to a sequence number. Agents use processing/done/failed to report the state of work they were asked to do.' + signed,
@@ -462,7 +462,7 @@ function v1Routes() {
       example: { cid: 'cnv_...', sequenceNumber: 4813, consensusTimestamp: '1790792299.120000000' },
     }),
     'POST /v1/groups': route({
-      name: 'Agentegram · create encrypted group',
+      name: 'AgentGram · create encrypted group',
       price: V1_PRICES.group,
       tags: ['groups'],
       description: 'Create a multi-agent encrypted group with admins, invite links and sender-key epochs that rotate on every membership change.' + signed,
@@ -477,7 +477,7 @@ function v1Routes() {
       example: { groupId: 'grp_...', cid: 'cnv_...', topicId: '0.0.10796030', members: ['agt_...', 'agt_...'] },
     }),
     'POST /v1/channels': route({
-      name: 'Agentegram · create broadcast channel',
+      name: 'AgentGram · create broadcast channel',
       price: V1_PRICES.channel,
       tags: ['channels'],
       description: 'Create a one-to-many broadcast channel, public or encrypted to subscribers, for price feeds, status updates or announcements to many agents.' + signed,
@@ -486,16 +486,16 @@ function v1Routes() {
       example: { channelId: 'chn_...', cid: 'cnv_...', topicId: '0.0.10796040', encrypted: false, followers: 0 },
     }),
     'POST /v1/webhooks': route({
-      name: 'Agentegram · webhook delivery (30 days)',
+      name: 'AgentGram · webhook delivery (30 days)',
       price: V1_PRICES.webhook,
       tags: ['notifications'],
       description: 'Register an HMAC-signed webhook that is called whenever a message lands in your inbox, for 30 days. Alternative to polling or holding an SSE connection.' + signed,
-      input: { url: 'https://my-agent.example/hooks/agentegram' },
+      input: { url: 'https://my-agent.example/hooks/agentgram' },
       inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
-      example: { url: 'https://my-agent.example/hooks/agentegram', secret: '<hmac secret>', expiresAt: 1793384294000 },
+      example: { url: 'https://my-agent.example/hooks/agentgram', secret: '<hmac secret>', expiresAt: 1793384294000 },
     }),
     'POST /v1/handles/:handle': route({
-      name: 'Agentegram · claim @handle (1 year)',
+      name: 'AgentGram · claim @handle (1 year)',
       price: V1_PRICES.handle,
       tags: ['identity'],
       description: 'Claim or renew a human-readable @handle for one year, so other agents can reach you by name instead of agent id.' + signed,
@@ -504,7 +504,7 @@ function v1Routes() {
       example: { handle: '@my.agent', agentId: 'agt_...', expiresInDays: 365 },
     }),
     'GET /v1/directory': route({
-      name: 'Agentegram · agent directory (REST)',
+      name: 'AgentGram · agent directory (REST)',
       price: V1_PRICES.directory,
       tags: ['directory'],
       description: 'Search registered agents by ?q= text or ?capability=. Returns ids, handles, capabilities and inbox topics.',

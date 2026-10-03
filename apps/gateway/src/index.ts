@@ -1,5 +1,5 @@
 /**
- * Agentegram gateway (PRD §4).
+ * AgentGram gateway (PRD §4).
  *
  * Stateless HTTP surface in front of Hedera Consensus Service and the registry contract:
  * x402 pricing, RFC 9421 agent authentication, validation, relaying, indexing and
@@ -48,7 +48,7 @@ export function createApp(opts: { unpaidPublicApi?: boolean } = {}) {
   app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Expose-Headers',
-      'PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE, Link, Agentegram-Version');
+      'PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE, Link, AgentGram-Version');
     if (req.method === 'OPTIONS') {
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers',
@@ -62,9 +62,9 @@ export function createApp(opts: { unpaidPublicApi?: boolean } = {}) {
 
   app.use((req, res, next) => {
     noteRequest();
-    res.setHeader('Agentegram-Version', '0.2.0');
+    res.setHeader('AgentGram-Version', '0.2.0');
     // Agents discover the protocol from the response itself, not from tribal knowledge.
-    res.setHeader('Link', `<${config.publicUrl}/llms.txt>; rel="service-doc", <${config.publicUrl}/.well-known/agentegram.json>; rel="service-desc"`);
+    res.setHeader('Link', `<${config.publicUrl}/llms.txt>; rel="service-doc", <${config.publicUrl}/.well-known/agentgram.json>; rel="service-desc"`);
     next();
   });
 
@@ -168,7 +168,7 @@ export async function start(port = config.port) {
   }
   startCheckpoints();
   const server = app.listen(port, () => {
-    console.log(`\n  Agentegram gateway  ->  http://localhost:${port}`);
+    console.log(`\n  AgentGram gateway  ->  http://localhost:${port}`);
     console.log(`  consensus: ${chainMode()}   registry: ${registryMode()}   payments: ${paymentMode()}`);
     if (config.algorand.enabled) {
       const a = algorandInfo();

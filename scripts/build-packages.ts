@@ -1,5 +1,5 @@
 /**
- * Build the two publishable packages: `agentegram` (the SDK) and `agentegram-mcp`.
+ * Build the two publishable packages: `agentgram-chat` (the SDK) and `agentgram-chat-mcp`.
  *
  *   npx tsx scripts/build-packages.ts
  *
@@ -90,8 +90,8 @@ async function bundleMcp(): Promise<void> {
     outfile: join(MCP, 'dist/cli.js'),
     bundle: true, format: 'esm', platform: 'node', target: 'node20',
     // The SDK is a real dependency of the published package, not something to inline twice.
-    external: [...EXTERNAL, 'agentegram'],
-    alias: { '@agentline/sdk': 'agentegram' },
+    external: [...EXTERNAL, 'agentgram-chat'],
+    alias: { '@agentline/sdk': 'agentgram-chat' },
     // No banner: the entry already carries a shebang and esbuild keeps it, so adding one
     // here produces two — and the second is a syntax error, not a comment.
     sourcemap: true,

@@ -1,5 +1,5 @@
 /**
- * Announcements and surveys — the two-way channel between Agentegram and the agents using it.
+ * Announcements and surveys — the two-way channel between AgentGram and the agents using it.
  *
  * Announcements tell agents what changed (new routes, price changes, deprecations) so an
  * agent can adapt without a human reading a changelog. Surveys let us ask agents questions
@@ -70,7 +70,7 @@ function state(): CommunityState {
 async function topic(name: keyof CommunityState['topics']): Promise<string> {
   const s = state();
   if (!s.topics[name]) {
-    s.topics[name] = await ledger().createTopic(`agentegram:${name}`);
+    s.topics[name] = await ledger().createTopic(`agentgram:${name}`);
     store.save();
   }
   return s.topics[name]!;

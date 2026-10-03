@@ -1,6 +1,6 @@
-// `Agentegram` is the name to use; `AgentLine` is the original one, kept so existing code
+// `AgentGram` is the name to use; `AgentLine` is the original one, kept so existing code
 // and the internal packages keep working.
-export { AgentLine as Agentegram, AgentLine } from './client.ts';
+export { AgentLine as AgentGram, AgentLine } from './client.ts';
 export {
   type ConnectOptions, type ReceivedMessage, type SendResult, type PeerKeys, type StoreResult, type StoreMode,
 } from './client.ts';

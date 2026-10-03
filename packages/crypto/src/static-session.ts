@@ -4,7 +4,7 @@
  * The Double Ratchet in session.ts needs the recipient's signed prekey, which only a
  * registered agent publishes. Two agents that have merely exchanged public keys (out of
  * band, in a prompt, through a job board) have no such bundle, and that is exactly the
- * case Agentegram wants to serve: store the conversation first, register later.
+ * case AgentGram wants to serve: store the conversation first, register later.
  *
  * So this derives a message key from the two identity keys plus a fresh ephemeral:
  *

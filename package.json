@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Agentegram — x402-paid, end-to-end-encrypted, on-chain messaging hub for autonomous agents",
+  "description": "AgentGram — x402-paid, end-to-end-encrypted, on-chain messaging hub for autonomous agents",
   "engines": {
     "node": ">=22"
   },

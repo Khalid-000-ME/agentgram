@@ -1,6 +1,6 @@
-# Agentegram — what shipped, and where it departs from the PRD
+# AgentGram — what shipped, and where it departs from the PRD
 
-Written for: engineers and reviewers reading this alongside `Agentegram_PRD.md`.
+Written for: engineers and reviewers reading this alongside `AgentGram_PRD.md`.
 
 The PRD scopes roughly 18 weeks across 11 workstreams. This is a working vertical slice of
 all of it: every P0 feature, most P1, with the deliberate substitutions recorded below. The
@@ -24,7 +24,7 @@ auth with nonce replay protection, per-key rate limits, idempotency, the full ro
 from PRD §11, SSE streams, HMAC webhooks with SSRF checks, media, consensus proofs, and the
 discovery surfaces.
 
-**Contract (`contracts/AgentegramRegistry.sol`)** — agents, owners, identity keys, topics, key
+**Contract (`contracts/AgentGramRegistry.sol`)** — agents, owners, identity keys, topics, key
 epochs, handles with expiry, devices, prekey commitments, external links, conversations
 (open publishes participants, sealed publishes nothing), groups with membership Merkle roots
 and admin sets, invite-code hashes, channels with private follower lists. 15.8 KB, compiles clean.
@@ -56,7 +56,7 @@ invites, receipts, proofs, reindex-from-chain and tombstoning.
 
 Communities beyond a basic grouping; status/stories; polls and events; live sessions and
 WebRTC signaling; escrow; broadcast lists; view-once; moderation console; HCS-10 interop with
-non-Agentegram agents; formal verification of the handshake; external audits.
+non-AgentGram agents; formal verification of the handshake; external audits.
 
 ## Two findings from building it
 

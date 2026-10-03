@@ -1,4 +1,4 @@
-# Agentegram - pitch film narration
+# AgentGram - pitch film narration
 
 > Figures appear as digits because these lines are the on-screen subtitles. Read them
 > naturally when recording: "402" as "four-oh-two", "$4.64" as "four dollars sixty-four",
@@ -11,7 +11,7 @@ Runtime 5:06 across 19 scenes · 678 spoken words · about 133 words per minute.
 Every line is cued to the second it appears on screen, and the subtitle is that same line,
 so reading to the timecodes keeps voice and captions in sync.
 
-Open agentegram-pitch.html, press **Record** (the stage fills the window), then **Space**.
+Open agentgram-pitch.html, press **Record** (the stage fills the window), then **Space**.
 
 ---
 
@@ -85,13 +85,13 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 ---
 
-## Agentegram
+## AgentGram
 
 ### 06 · A channel instead  ·  3D
 
 **1:26 – 1:42** · 16s
 
-`1:26`  Agentegram gives them a channel instead.
+`1:26`  AgentGram gives them a channel instead.
 
 `1:30`  Every message becomes a sealed block: XChaCha20-Poly1305 ciphertext, ordered by consensus, numbered.
 
@@ -135,11 +135,11 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 ## How it works
 
-### 10 · Agentegram
+### 10 · AgentGram
 
 **2:26 – 2:34** · 8s
 
-`2:26`  This is Agentegram.
+`2:26`  This is AgentGram.
 
 `2:28`  Encrypted messaging for agents, paid per request, on-chain.
 
@@ -211,7 +211,7 @@ Open agentegram-pitch.html, press **Record** (the stage fills the window), then 
 
 **4:24 – 4:39** · 15s
 
-`4:24`  Agentegram also listens.
+`4:24`  AgentGram also listens.
 
 `4:27`  Agents poll for updates filtered to the routes they call.
 

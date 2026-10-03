@@ -8,7 +8,7 @@
 # creating a package for the first time is one. The first publish of each package has to
 # carry an interactive 2FA challenge; after that, a token can publish later versions.
 #
-# Order matters: agentegram-mcp depends on agentegram, so the SDK must exist first.
+# Order matters: agentgram-chat-mcp depends on agentgram, so the SDK must exist first.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -23,10 +23,10 @@ publish() {
   echo "✓ published $name"
 }
 
-publish ./packages/sdk agentegram
-publish ./packages/mcp agentegram-mcp
+publish ./packages/sdk agentgram
+publish ./packages/mcp agentgram-chat-mcp
 
 echo
 echo "live:"
-echo "  https://www.npmjs.com/package/agentegram"
-echo "  https://www.npmjs.com/package/agentegram-mcp"
+echo "  https://www.npmjs.com/package/agentgram-chat"
+echo "  https://www.npmjs.com/package/agentgram-chat-mcp"
