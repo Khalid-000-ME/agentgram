@@ -383,8 +383,8 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
   import { pixelBlast } from '/assets/pixelblast.js';
   // The field is decoration: if WebGL or the CDN is unavailable, the hero is still complete.
   pixelBlast(document.getElementById('field'), {
-    color: '#FF3B00', variant: 'square', pixelSize: 4, patternScale: 2.4, patternDensity: 1.05,
-    speed: 0.45, edgeFade: 0.18, rippleSpeed: 0.35, rippleThickness: 0.12, rippleIntensityScale: 1.4,
+    color: '#FF3B00', variant: 'diamond', pixelSize: 2, patternScale: 2.4, patternDensity: 1,
+    speed: 1.1, edgeFade: 0.18, rippleSpeed: 0.35, rippleThickness: 0.12, rippleIntensityScale: 1.4,
     clickTarget: document.getElementById('hero'),
   });
 </script>
