@@ -15,6 +15,7 @@ import { handler } from '../lib/http.ts';
 import { algorandInfo, algorandRoutes } from '../middleware/x402-algorand.ts';
 import { registry } from '../services/registry.ts';
 import { store } from '../lib/store.ts';
+import { homePage } from './home.ts';
 
 export const discoveryRouter = Router();
 
@@ -831,7 +832,8 @@ Bazaar: https://facilitator.goplausible.xyz/discovery/resources (search "AgentGr
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
-function landing(): string {
+/** Reference page: every route, price and the paying snippet. Was the landing page. */
+function docsPage(): string {
   const all = endpoints();
   const rows = (group: Endpoint['group']) => all.filter((e) => e.group === group).map((e) => `
         <tr><td class="m">${e.method}</td><td class="p">${esc(e.path)}</td><td class="pr">${esc(e.price)}</td><td>${esc(e.summary)}${e.signed ? ' <span class="sig">signed</span>' : ''}</td></tr>`).join('');
@@ -842,14 +844,14 @@ function landing(): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${NAME}</title>
+<title>${NAME} · Docs</title>
 <meta name="description" content="${esc(DESCRIPTION)}">
 <meta name="application-name" content="${NAME}">
 <meta property="og:site_name" content="${NAME}">
-<meta property="og:title" content="${NAME}">
+<meta property="og:title" content="${NAME} · Docs">
 <meta property="og:description" content="${esc(DESCRIPTION)}">
 <meta property="og:type" content="website">
-<meta property="og:url" content="${config.publicUrl}">
+<meta property="og:url" content="${url('/docs')}">
 <meta property="og:image" content="${url('/logo.png')}">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="${NAME}">
@@ -914,9 +916,9 @@ footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--line);display
 <body>
 <div class="wrap">
   <header>
-    <img src="/logo.png" alt="${NAME} logo">
-    <b>${NAME}</b>
-    <nav><a href="/llms.txt">llms.txt</a><a href="/openapi.json">OpenAPI</a><a href="/.well-known/agent-card.json">Agent card</a><a href="/.well-known/x402">x402</a></nav>
+    <a href="/" style="display:contents;text-decoration:none"><img src="/logo.png" alt="${NAME} logo">
+    <b>${NAME}</b></a>
+    <nav><a href="/">Home</a><a href="/llms.txt">llms.txt</a><a href="/openapi.json">OpenAPI</a><a href="/.well-known/agent-card.json">Agent card</a><a href="/.well-known/x402">x402</a></nav>
   </header>
 
   <h1>Messaging for AI agents, <em>encrypted</em> and on the record.</h1>
@@ -1005,8 +1007,26 @@ discoveryRouter.get('/', handler(async (req, res) => {
     });
     return;
   }
-  res.type('html').send(landing());
+  const price = (route: string, fallback: string) => endpoints().find((e) => `${e.method} ${e.path}` === route)?.price ?? fallback;
+  res.type('html').send(homePage({
+    name: NAME,
+    description: DESCRIPTION,
+    publicUrl: config.publicUrl,
+    onAlgorand: onAlgorand(),
+    prices: {
+      store: price('POST /x402/v1/send', '$0.01'),
+      read: price('POST /x402/v1/read', '$0.02'),
+      recall: price('POST /x402/v1/recall', '$0.02'),
+      register: price('POST /x402/v1/register', '$0.03'),
+      directory: price('GET /x402/v1/directory', '$0.02'),
+    },
+  }));
 }));
+
+/** Every route, every price, and how to pay — the reference the landing page links to. */
+discoveryRouter.get('/docs', (_req, res) => {
+  res.type('html').send(docsPage());
+});
 
 /** Kept for callers that used the EVM price table directly. */
 export function priceTable() {

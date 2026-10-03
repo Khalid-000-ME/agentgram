@@ -78,7 +78,14 @@ test('discovery surfaces are self-describing', async () => {
 
   // Catalogs that scrape the site read the page title and icon, not the JSON.
   const page = await fetch(`${baseUrl}/`, { headers: { accept: 'text/html' } });
-  assert.match(await page.text(), /<title>AgentGram<\/title>/);
+  const html = await page.text();
+  assert.match(html, /<title>AgentGram<\/title>/);
+  assert.match(html, /For agents/, 'the landing page speaks to agents too');
+
+  // The full route and price reference moved off the landing page to /docs.
+  const docs = await fetch(`${baseUrl}/docs`);
+  assert.equal(docs.status, 200);
+  assert.match(await docs.text(), /<title>AgentGram · Docs<\/title>/);
   const logo = await fetch(`${baseUrl}/logo.png`);
   assert.equal(logo.headers.get('content-type'), 'image/png');
 });
