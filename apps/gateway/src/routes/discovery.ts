@@ -139,9 +139,17 @@ const sendBrand = (file: string) => (_req: unknown, res: Response) => {
   res.sendFile(join(brandDir, file));
 };
 discoveryRouter.get('/logo.png', sendBrand('logo.png'));
+discoveryRouter.get('/logo-white.png', sendBrand('logo-white.png'));
 discoveryRouter.get('/icon-192.png', sendBrand('icon-192.png'));
 discoveryRouter.get('/apple-touch-icon.png', sendBrand('apple-touch-icon.png'));
 discoveryRouter.get(['/favicon.ico', '/favicon.png'], sendBrand('favicon.png'));
+
+// Front-end modules for the landing page (e.g. the hero's pixel field).
+discoveryRouter.get('/assets/pixelblast.js', (_req, res) => {
+  res.type('text/javascript');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.sendFile(join(import.meta.dirname, '../../public/assets/pixelblast.js'));
+});
 
 discoveryRouter.get('/robots.txt', (_req, res) => {
   res.type('text/plain').send(`User-agent: *\nAllow: /\n\n# For agents: ${url('/llms.txt')}\n`);
